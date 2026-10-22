@@ -1,0 +1,114 @@
+[
+  {
+    "id": "GT-SECRET-01",
+    "file": "app.py",
+    "line": 7,
+    "rule_id": "SECRET-005",
+    "class": "Hardcoded Secrets",
+    "description": "Hardcoded AWS secret key string literal"
+  },
+  {
+    "id": "GT-SQLI-01",
+    "file": "app.py",
+    "line": 15,
+    "rule_id": "SQLI-001",
+    "class": "SQL Injection",
+    "description": "Raw f-string concatenation passed directly to cursor.execute()"
+  },
+  {
+    "id": "GT-XSS-01",
+    "file": "app.py",
+    "line": 28,
+    "rule_id": "XSS-002",
+    "class": "Cross-Site Scripting",
+    "description": "Unsanitized query parameter rendered directly into HTML string"
+  },
+  {
+    "id": "GT-SQLI-002-PCT",
+    "file": "app.py",
+    "line": 36,
+    "rule_id": "SQLI-002",
+    "class": "SQL Injection",
+    "description": "%-formatted query string passed to cursor.execute()"
+  },
+  {
+    "id": "GT-SQLI-002-FMT",
+    "file": "app.py",
+    "line": 44,
+    "rule_id": "SQLI-002",
+    "class": "SQL Injection",
+    "description": "str.format()-built query string passed to cursor.execute()"
+  },
+  {
+    "id": "GT-AUTH-001",
+    "file": "app.py",
+    "line": 60,
+    "rule_id": "AUTH-001",
+    "class": "Broken Authentication",
+    "description": "Password compared to stored value with == instead of a hash check"
+  },
+  {
+    "id": "GT-AUTH-002",
+    "file": "app.py",
+    "line": 72,
+    "rule_id": "AUTH-002",
+    "class": "Broken Authentication",
+    "description": "Password hashed with MD5"
+  },
+  {
+    "id": "GT-XSS-003",
+    "file": "app.py",
+    "line": 75,
+    "rule_id": "XSS-003",
+    "class": "Cross-Site Scripting",
+    "description": "Template autoescape disabled ({{ x|safe }})"
+  },
+  {
+    "id": "GT-CMDINJ-001",
+    "file": "app.py",
+    "line": 82,
+    "rule_id": "CMDINJ-001",
+    "class": "Command Injection",
+    "description": "Request input interpolated into os.system()"
+  },
+  {
+    "id": "GT-SECRET-001",
+    "file": "app.py",
+    "line": 86,
+    "rule_id": "SECRET-001",
+    "class": "Hardcoded Secrets",
+    "description": "AWS access key ID literal"
+  },
+  {
+    "id": "GT-SECRET-002",
+    "file": "app.py",
+    "line": 87,
+    "rule_id": "SECRET-002",
+    "class": "Hardcoded Secrets",
+    "description": "AWS secret access key assignment"
+  },
+  {
+    "id": "GT-SECRET-003",
+    "file": "app.py",
+    "line": 88,
+    "rule_id": "SECRET-003",
+    "class": "Hardcoded Secrets",
+    "description": "GitHub personal access token literal"
+  },
+  {
+    "id": "GT-SECRET-006",
+    "file": "app.py",
+    "line": 89,
+    "rule_id": "SECRET-006",
+    "class": "Hardcoded Secrets",
+    "description": "High-entropy string literal"
+  },
+  {
+    "id": "GT-SECRET-007",
+    "file": "app.py",
+    "line": 90,
+    "rule_id": "SECRET-007",
+    "class": "Hardcoded Secrets",
+    "description": "Private key block header in a tracked file"
+  }
+]

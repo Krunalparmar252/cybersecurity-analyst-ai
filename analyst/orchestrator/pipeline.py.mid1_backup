@@ -1,0 +1,107 @@
+"""
+Orchestrator — linear state machine per architecture.md §4:
+    INGEST -> DETECT -> REASON -> REPORT
+
+Each stage's artifact is written to disk before the next stage begins
+(resumability / debuggability, per architecture.md). Per-stage failures
+mark the run PARTIAL and still produce best-effort output rather than
+crashing — this matches the documented failure-handling philosophy and
+is also just good practice for a live demo (one bad LLM call shouldn't
+kill the whole run).
+"""
+
+from __future__ import annotations
+
+import json
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
+
+from analyst.ingestion.manifest import ingest_repo
+from analyst.detection.engine import run_detection
+from analyst.reasoning.engine import run_reasoning
+from analyst.reporting.renderer import render_report
+
+
+@dataclass
+class PipelineResult:
+    status: str  # "OK" | "PARTIAL"
+    report_text: str
+    confirmed_count: int
+    rejected_count: int
+    duration_seconds: float
+    stage_errors: dict
+
+
+def run_pipeline(
+    repo_path: str,
+    output_path: str,
+    artifact_dir: Optional[str] = None,
+    on_stage_start=None,
+    on_stage_done=None,
+) -> PipelineResult:
+    """
+    Run the full pipeline. on_stage_start/on_stage_done are optional
+    callbacks: fn(stage_name: str) -> None, used by the CLI to drive the
+    live progress display without the orchestrator knowing about rich/click.
+    """
+    start_time = time.time()
+    stage_errors: dict = {}
+    artifact_path = Path(artifact_dir) if artifact_dir else None
+    if artifact_path:
+        artifact_path.mkdir(parents=True, exist_ok=True)
+
+    # --- INGEST ---
+    if on_stage_start:
+        on_stage_start("INGEST")
+    ingestion = ingest_repo(repo_path)
+    if artifact_path:
+        (artifact_path / "ingestion_manifest.json").write_text(ingestion.manifest.to_json())
+    if on_stage_done:
+        on_stage_done("INGEST")
+
+    # --- DETECT ---
+    if on_stage_start:
+        on_stage_start("DETECT")
+    candidates = run_detection(ingestion)
+    if artifact_path:
+        (artifact_path / "candidate_findings.json").write_text(
+            json.dumps([c.to_dict() for c in candidates], indent=2)
+        )
+    if on_stage_done:
+        on_stage_done("DETECT")
+
+    # --- REASON ---
+    if on_stage_start:
+        on_stage_start("REASON")
+    confirmed = []
+    try:
+        confirmed = run_reasoning(candidates, ingestion.sources)
+        if artifact_path:
+            (artifact_path / "confirmed_findings.json").write_text(
+                json.dumps([c.to_dict() for c in confirmed], indent=2)
+            )
+    except Exception as exc:  # noqa: BLE001 - deliberate: one bad LLM call must not kill the run
+        stage_errors["REASON"] = str(exc)
+    if on_stage_done:
+        on_stage_done("REASON")
+
+    # --- REPORT ---
+    if on_stage_start:
+        on_stage_start("REPORT")
+    duration = time.time() - start_time
+    report_text = render_report(confirmed, repo_path, duration)
+    Path(output_path).write_text(report_text, encoding="utf-8")
+    if on_stage_done:
+        on_stage_done("REPORT")
+
+    status = "PARTIAL" if stage_errors else "OK"
+    return PipelineResult(
+        status=status,
+        report_text=report_text,
+        confirmed_count=sum(1 for f in confirmed if f.confirmed),
+        rejected_count=sum(1 for f in confirmed if not f.confirmed),
+        duration_seconds=duration,
+        stage_errors=stage_errors,
+    )

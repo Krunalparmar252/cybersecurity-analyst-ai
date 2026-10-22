@@ -1,0 +1,27 @@
+# Rule catalogue: metadata for every rule the Detection agent implements.
+# Specs:           Document/rules.md
+# Implementation:  analyst/detection/engine.py (original rules)
+#                  analyst/detection/rules_extra.py (Task 4 rules)
+# tests/test_rule_registry.py fails if this list and the code drift apart.
+# llm_confirmation mirrors rules.md: unambiguous formats skip LLM confirmation
+# only in the spec; in this build every candidate still passes through REASON.
+rules:
+  - {id: SQLI-001, class: SQL Injection, match: ast, languages: [python, javascript, typescript], module: engine}
+  - {id: SQLI-002, class: SQL Injection, match: ast, languages: [python], module: rules_extra, note: "%-format or .format() in execute()/raw(); supersedes SQLI-001 on the same line"}
+  - {id: XSS-001, class: Cross-Site Scripting, match: ast, languages: [javascript, typescript], module: rules_extra, note: "dangerouslySetInnerHTML with non-literal, unsanitised value"}
+  - {id: XSS-002, class: Cross-Site Scripting, match: ast, languages: [python, javascript, typescript], module: engine}
+  - {id: XSS-003, class: Cross-Site Scripting, match: regex, languages: [any-ingested], module: rules_extra, note: "Jinja2 |safe and EJS <%- %> in source files"}
+  - {id: AUTH-001, class: Broken Authentication, match: ast, languages: [python], module: rules_extra, note: "password compared with ==/!= instead of a hash-verify call"}
+  - {id: AUTH-002, class: Broken Authentication, match: ast, languages: [python], module: rules_extra, note: "md5/sha1 applied to a password"}
+  - {id: CMDINJ-001, class: Command Injection, match: ast, languages: [python], module: engine}
+  - {id: PATHTRAV-001, class: Path Traversal, match: ast, languages: [python], module: engine}
+  - {id: DESER-001, class: Unsafe Deserialization, match: ast, languages: [python], module: engine}
+  - {id: DESER-002, class: Unsafe Deserialization, match: ast, languages: [javascript, typescript], module: rules_extra, note: "eval()/Function() with non-literal input"}
+  - {id: SECRET-001, class: Hardcoded Secrets, match: regex, languages: [any-ingested], module: rules_extra, redacted: true}
+  - {id: SECRET-002, class: Hardcoded Secrets, match: regex, languages: [any-ingested], module: rules_extra, redacted: true}
+  - {id: SECRET-003, class: Hardcoded Secrets, match: regex, languages: [any-ingested], module: rules_extra, redacted: true}
+  - {id: SECRET-005, class: Hardcoded Secrets, match: regex, languages: [any-ingested], module: engine, redacted: true}
+  - {id: SECRET-006, class: Hardcoded Secrets, match: entropy, languages: [any-ingested], module: rules_extra, redacted: true, note: "len>=20, Shannon entropy>=4.0 bits/char"}
+  - {id: SECRET-007, class: Hardcoded Secrets, match: regex, languages: [any-ingested], module: rules_extra, note: "header only; key body never echoed. Only fires in ingested source-language files (.pem is not ingested)"}
+# Specified in rules.md but NOT implemented (listed so the gap is explicit).
+not_implemented: [XSS-004, AUTH-003, AUTH-004, SSRF-001, SECRET-004, SECRET-008]

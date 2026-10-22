@@ -1,0 +1,114 @@
+[
+  {
+    "id": "GT-JSTS-SECRET-01",
+    "file": "server.js",
+    "line": 4,
+    "rule_id": "SECRET-005",
+    "class": "Hardcoded Secrets",
+    "description": "Hardcoded API secret token string literal"
+  },
+  {
+    "id": "GT-JSTS-SQLI-01",
+    "file": "server.js",
+    "line": 8,
+    "rule_id": "SQLI-001",
+    "class": "SQL Injection",
+    "description": "Unsanitized template literal query passed to db.query()"
+  },
+  {
+    "id": "GT-JSTS-XSS-01",
+    "file": "server.js",
+    "line": 10,
+    "rule_id": "XSS-002",
+    "class": "Cross-Site Scripting",
+    "description": "Unsanitized template interpolation rendered into HTML response via res.send()"
+  },
+  {
+    "id": "GT-JSTS-SECRET-02",
+    "file": "service.ts",
+    "line": 3,
+    "rule_id": "SECRET-005",
+    "class": "Hardcoded Secrets",
+    "description": "Hardcoded JWT secret key string literal in TypeScript"
+  },
+  {
+    "id": "GT-JSTS-SQLI-02",
+    "file": "service.ts",
+    "line": 6,
+    "rule_id": "SQLI-001",
+    "class": "SQL Injection",
+    "description": "Unsanitized template literal query passed to client.query() in TypeScript"
+  },
+  {
+    "id": "GT-JSTS-DESER-002-EVAL",
+    "file": "server.js",
+    "line": 15,
+    "rule_id": "DESER-002",
+    "class": "Unsafe Deserialization",
+    "description": "eval() called with request input"
+  },
+  {
+    "id": "GT-JSTS-XSS-003",
+    "file": "server.js",
+    "line": 23,
+    "rule_id": "XSS-003",
+    "class": "Cross-Site Scripting",
+    "description": "EJS unescaped output (<%- %>)"
+  },
+  {
+    "id": "GT-JSTS-SECRET-001-SERVER",
+    "file": "server.js",
+    "line": 26,
+    "rule_id": "SECRET-001",
+    "class": "Hardcoded Secrets",
+    "description": "AWS access key ID literal"
+  },
+  {
+    "id": "GT-JSTS-SECRET-002-SERVER",
+    "file": "server.js",
+    "line": 27,
+    "rule_id": "SECRET-002",
+    "class": "Hardcoded Secrets",
+    "description": "AWS secret access key assignment"
+  },
+  {
+    "id": "GT-JSTS-SECRET-003-SERVER",
+    "file": "server.js",
+    "line": 28,
+    "rule_id": "SECRET-003",
+    "class": "Hardcoded Secrets",
+    "description": "GitHub personal access token literal"
+  },
+  {
+    "id": "GT-JSTS-DESER-002-FN",
+    "file": "service.ts",
+    "line": 11,
+    "rule_id": "DESER-002",
+    "class": "Unsafe Deserialization",
+    "description": "new Function() built from non-literal input"
+  },
+  {
+    "id": "GT-JSTS-SECRET-006-SERVICE",
+    "file": "service.ts",
+    "line": 14,
+    "rule_id": "SECRET-006",
+    "class": "Hardcoded Secrets",
+    "description": "High-entropy string literal"
+  },
+  {
+    "id": "GT-JSTS-SECRET-007-SERVICE",
+    "file": "service.ts",
+    "line": 15,
+    "rule_id": "SECRET-007",
+    "class": "Hardcoded Secrets",
+    "description": "Private key block header in a tracked file"
+  },
+  {
+    "id": "GT-JSTS-XSS-001",
+    "file": "profile_view.js",
+    "line": 5,
+    "rule_id": "XSS-001",
+    "class": "Cross-Site Scripting",
+    "description": "dangerouslySetInnerHTML with unsanitised prop"
+  }
+]

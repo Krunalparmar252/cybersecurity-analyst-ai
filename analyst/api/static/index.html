@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberSec AI — Autonomous Security Analyst</title>
+    <meta name="description" content="Autonomous multi-agent cybersecurity analyst. Scans, confirms, patches and reports vulnerabilities in your codebase.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@11/marked.min.js"></script>
+    <link rel="stylesheet" href="/styles.css?v=3.2.0">
+</head>
+<body>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="bg-orbs" aria-hidden="true">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+    <div class="app-shell">
+        <header class="topbar" id="topbar">
+            <div class="topbar-left">
+                <div class="brand-logo">
+                    <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+                        <path d="M18 2L4 8V18C4 25.7 10.3 32.9 18 35C25.7 32.9 32 25.7 32 18V8L18 2Z" fill="url(#lg1)" stroke="url(#lg2)" stroke-width="1.5"/>
+                        <path d="M12 18L16 22L24 14" stroke="#00fff7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <defs>
+                            <linearGradient id="lg1" x1="18" y1="2" x2="18" y2="35" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#0a0f1e"/><stop offset="1" stop-color="#0d1a2e"/>
+                            </linearGradient>
+                            <linearGradient id="lg2" x1="4" y1="2" x2="32" y2="35" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#00fff7"/><stop offset="1" stop-color="#b845ff"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <div class="brand-text">
+                        <span class="brand-name">CYBERSEC<span class="brand-accent">·AI</span></span>
+                        <span class="brand-sub">Autonomous Security Analyst &bull; Code Quality & Remediation Assistant</span>
+                    </div>
+                </div>
+            </div>
+            <div class="topbar-center">
+                <div class="scan-form">
+                    <div class="field-group">
+                        <label class="field-label" for="target-repo">Target Path / URL</label>
+                        <input type="text" id="target-repo" class="neo-input" value="demo_app" placeholder="demo_app or git URL" autocomplete="off" spellcheck="false">
+                    </div>
+                    <div class="field-group field-group--sm">
+                        <label class="field-label" for="engine-select">Engine</label>
+                        <select id="engine-select" class="neo-select">
+                            <option value="graph">LangGraph</option>
+                            <option value="linear">Linear</option>
+                        </select>
+                    </div>
+                    <button id="btn-start" class="btn-scan">
+                        <span class="btn-scan__text">&#x1F680; Launch Scan</span>
+                        <span class="btn-scan__shimmer"></span>
+                    </button>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <div id="status-bar" class="metric-pills hidden">
+                    <div class="metric-pill metric-pill--job">
+                        <span class="mp-label">JOB</span>
+                        <span id="job-id-disp" class="mp-val font-mono">&#x2014;</span>
+                    </div>
+                    <div class="metric-pill">
+                        <span class="mp-label">STATE</span>
+                        <span id="job-status-badge" class="status-chip chip--pending">IDLE</span>
+                    </div>
+                    <div class="metric-pill">
+                        <span class="mp-label">CONFIRMED</span>
+                        <span id="stat-confirmed" class="mp-val neon-cyan">0</span>
+                    </div>
+                    <div class="metric-pill">
+                        <span class="mp-label">ESCALATED</span>
+                        <span id="stat-escalated" class="mp-val neon-amber">0</span>
+                    </div>
+                    <div class="metric-pill">
+                        <span class="mp-label">TIME</span>
+                        <span id="stat-duration" class="mp-val font-mono">0.0s</span>
+                    </div>
+                </div>
+                <button class="theme-toggle" id="theme-toggle" title="Toggle dark/light theme" aria-label="Toggle theme">
+                    <span class="theme-toggle__track">
+                        <span class="theme-toggle__thumb"></span>
+                        <span class="theme-toggle__label tl-dark">&#x263D;</span>
+                        <span class="theme-toggle__label tl-light">&#x2600;</span>
+                    </span>
+                </button>
+            </div>
+        </header>
+        <div class="main-body">
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <span>Agent Pipeline</span>
+                    <div class="pipeline-live">
+                        <span class="live-pulse" id="global-pulse"></span>
+                        <span id="global-status-text">IDLE</span>
+                    </div>
+                </div>
+                <div class="agent-list">
+                    <div class="agent-card" id="card-ingest">
+                        <div class="agent-card__glow"></div>
+                        <div class="agent-card__header">
+                            <div class="agent-num">M1</div>
+                            <div class="agent-info">
+                                <div class="agent-name">Code Ingestion</div>
+                                <div class="agent-note" id="m1-note">Awaiting job&#x2026;</div>
+                            </div>
+                            <span class="agent-badge" id="m1-badge">PENDING</span>
+                        </div>
+                        <div class="agent-steps">
+                            <div class="astep" id="m1-run">1. RUN</div>
+                            <div class="astep-connector"></div>
+                            <div class="astep" id="m1-obs">2. OBSERVE</div>
+                            <div class="astep-connector"></div>
+                            <div class="astep" id="m1-dec">3. DECIDE</div>
+                        </div>
+                    </div>
+                    <div class="agent-card" id="card-detect">
+                        <div class="agent-card__glow"></div>
+                        <div class="agent-card__header">
+                            <div class="agent-num">M2</div>
+                            <div class="agent-info">
+                                <div class="agent-name">Pattern Detection</div>
+                                <div class="agent-note" id="m2-note">Awaiting AST parse&#x2026;</div>
+                            </div>
+                            <span class="agent-badge" id="m2-badge">PENDING</span>
+                        </div>
+                        <div class="agent-steps">
+                            <div class="astep" id="m2-run">1. RUN</div>
+                            <div class="astep-connector"></div>
+                            <div class="astep" id="m2-obs">2. OBSERVE</div>
+                            <div class="astep-connector"></div>
+                            <div class="astep" id="m2-dec">3. DECIDE</div>
+                        </div>
+                    </div>
+                    <div class="agent-card" id="card-reason">
+                        <div class="agent-card__glow"></div>
+                        <div class="agent-card__header">
+                            <div class="agent-num">M3</div>
+                            <div class="agent-info">
+                                <div class="agent-name">Review &amp; Patch Loop</div>
+                                <div class="agent-note" id="m3-note">Awaiting candidates&#x2026;</div>
+                            </div>
+                            <span class="agent-badge" id="m3-badge">PENDING</span>
+                        </div>
+                        <div class="agent-steps">
+                            <div class="astep" id="m3-run">1. RUN</div>
+                            <div class="astep-connector"></div>
+                            <div class="astep" id="m3-obs">2. OBSERVE</div>
+                            <div class="astep-connector"></div>
+                            <div class="astep" id="m3-dec">3. DECIDE</div>
+                        </div>
+                    </div>
+                    <div class="agent-card" id="card-verify">
+                        <div class="agent-card__glow"></div>
+                        <div class="agent-card__header">
+                            <div class="agent-num">M4</div>
+                            <div class="agent-info">
+                                <div class="agent-name">Exploit Verification</div>
+                                <div class="agent-note" id="m4-note">Awaiting verify&#x2026;</div>
+                            </div>
+                            <span class="agent-badge" id="m4-badge">PENDING</span>
+                        </div>
+                        <div class="agent-steps">
+                            <div class="astep" id="m4-run">1. RUN</div>
+                            <div class="astep-connector"></div>
+                            <div class="astep" id="m4-obs">2. OBSERVE</div>
+                            <div class="astep-connector"></div>
+                            <div class="astep" id="m4-dec">3. DECIDE</div>
+                        </div>
+                    </div>
+                    <div class="agent-card" id="card-report">
+                        <div class="agent-card__glow"></div>
+                        <div class="agent-card__header">
+                            <div class="agent-num">M5</div>
+                            <div class="agent-info">
+                                <div class="agent-name">Report Generator</div>
+                                <div class="agent-note" id="m5-note">Awaiting synthesis&#x2026;</div>
+                            </div>
+                            <span class="agent-badge" id="m5-badge">PENDING</span>
+                        </div>
+                        <div class="agent-steps">
+                            <div class="astep" id="m5-run">1. RUN</div>
+                            <div class="astep-connector"></div>
+                            <div class="astep" id="m5-obs">2. OBSERVE</div>
+                            <div class="astep-connector"></div>
+                            <div class="astep" id="m5-dec">3. DECIDE</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+            <main class="content-area">
+                <nav class="tab-nav" role="tablist">
+                    <button class="tab-nav__btn active" role="tab" data-tab="tab-progress">&#x26A1; Live Stream</button>
+                    <button class="tab-nav__btn" role="tab" data-tab="tab-findings">&#x1F50D; Findings <span class="tab-pill" id="badge-count-findings">0</span></button>
+                    <button class="tab-nav__btn" role="tab" data-tab="tab-fixes">&#x1F6E0;&#xFE0F; Fixes &amp; Diffs <span class="tab-pill" id="badge-count-fixes">0</span></button>
+                    <button class="tab-nav__btn" role="tab" data-tab="tab-report">&#x1F4CA; Report</button>
+                    <button class="tab-nav__btn" role="tab" data-tab="tab-diagram">&#x1F578;&#xFE0F; Graph</button>
+                    <div class="tab-nav__underline" id="tab-underline"></div>
+                </nav>
+                <div class="tab-content">
+                    <div class="tab-pane active" id="tab-progress" role="tabpanel">
+                        <div class="glass-terminal">
+                            <div class="terminal-bar">
+                                <div class="terminal-dots">
+                                    <span class="tdot tdot--red"></span>
+                                    <span class="tdot tdot--yellow"></span>
+                                    <span class="tdot tdot--green"></span>
+                                </div>
+                                <span class="terminal-title">&#x1F4E1; Agent-to-Agent Message Bus &mdash; Real-Time Live Feed</span>
+                                <div class="terminal-controls">
+                                    <span class="terminal-count" id="terminal-msg-count">0 msgs</span>
+                                    <button class="terminal-clear" id="btn-clear-terminal" title="Clear terminal">&#x2715; Clear</button>
+                                </div>
+                            </div>
+                            <div id="terminal-log" class="terminal-body font-mono">
+                                <div class="term-init-line"><span class="term-prompt">root@cybersec-ai:~$</span> <span class="term-blink">_</span> Awaiting scan initialization... Messages will stream here live.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane" id="tab-findings" role="tabpanel">
+                        <div class="section-meta-header">
+                            <div>
+                                <h3 class="section-title">Vulnerability Findings</h3>
+                                <p class="section-subtitle">Real-time candidate detection and verified security flaws streamed from M2 &amp; M3.</p>
+                            </div>
+                            <div class="filter-pills" id="findings-filter">
+                                <button class="filter-pill active" data-filter="all">All</button>
+                                <button class="filter-pill" data-filter="CRITICAL">Critical</button>
+                                <button class="filter-pill" data-filter="HIGH">High</button>
+                                <button class="filter-pill" data-filter="MEDIUM">Medium</button>
+                                <button class="filter-pill" data-filter="LOW">Low</button>
+                            </div>
+                        </div>
+                        <div id="findings-list" class="cards-container">
+                            <div class="empty-state">
+                                <div class="empty-icon">&#x26A0;</div>
+                                <p>No findings yet &mdash; run a scan to detect and verify vulnerabilities.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane" id="tab-fixes" role="tabpanel">
+                        <div class="section-meta-header">
+                            <div>
+                                <h3 class="section-title">Automated Fixes &amp; Code Patches</h3>
+                                <p class="section-subtitle">Propose &rarr; Act &rarr; Observe &rarr; Decide loop generates validated patches with diffs.</p>
+                            </div>
+                        </div>
+                        <div id="fixes-list" class="cards-container">
+                            <div class="empty-state">
+                                <div class="empty-icon">&#x1F6E0;&#xFE0F;</div>
+                                <p>No fix patches available yet &mdash; start a scan to generate automated code diffs.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane" id="tab-report" role="tabpanel">
+                        <div class="report-panel">
+                            <div class="report-panel__header">
+                                <div class="report-title-group">
+                                    <span>&#x1F4CA; Executive Security Audit Report</span>
+                                    <span class="report-panel__badge" id="report-integrity-badge"></span>
+                                </div>
+                                <div class="report-actions">
+                                    <button class="btn-action-sm" id="btn-copy-report" title="Copy raw markdown to clipboard">&#x1F4CB; Copy MD</button>
+                                    <button class="btn-action-sm" id="btn-download-report" title="Download report.md">&#x2B07;&#xFE0F; Download</button>
+                                    <button class="btn-action-sm" id="btn-print-report" title="Print report or save as PDF">&#x1F5A8;&#xFE0F; Print</button>
+                                </div>
+                            </div>
+                            <div id="report-view" class="report-body report-markdown">
+                                <div class="empty-state">
+                                    <div class="empty-icon">&#x1F4C4;</div>
+                                    <p>No audit report generated yet &mdash; launch a scan to generate an executive report.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane" id="tab-diagram" role="tabpanel">
+                        <div class="diagram-panel">
+                            <div class="diagram-panel__header">
+                                <div class="diagram-title-group">
+                                    <span>&#x1F578;&#xFE0F; Multi-Agent State Machine (LangGraph Orchestration)</span>
+                                    <span class="diagram-live-badge">&#x25CF; Dynamic Graph</span>
+                                </div>
+                                <button class="btn-action-sm" id="btn-refresh-diagram" title="Redraw diagram">&#x1F504; Refresh</button>
+                            </div>
+
+                            <div class="diagram-explainer">
+                                <div class="explainer-icon">&#x2139;&#xFE0F;</div>
+                                <div class="explainer-content">
+                                    <strong>What this Graph does:</strong>
+                                    <p>
+                                        Visualizes the autonomous multi-agent execution pipeline implemented with <strong>LangGraph</strong>. 
+                                        Control flows from <code>ingest</code> (M1) to <code>detect</code> (M2), where candidate findings are discovered. 
+                                        If low-signal findings are flagged, the orchestrator triggers <code>negotiate</code> (budget trade-off with the Reasoning agent). 
+                                        The flow continues to <code>reason</code> (M3 Review &amp; Sandbox Patch Loop), <code>triage</code>, and final cryptographic synthesis in <code>report</code> (M5). 
+                                        Solid lines represent direct transitions; dotted lines denote conditional runtime branches.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div id="mermaid-container" class="mermaid-target">
+                                <div class="mermaid">
+flowchart TD
+    classDef stage fill:#0d1a2e,stroke:#00fff7,stroke-width:1.5px,color:#00fff7;
+    classDef branch fill:#0d1a2e,stroke:#b845ff,stroke-width:1.5px,color:#b845ff;
+    START(["Scan Launch"]):::stage --> M1["M1: Ingestion & AST Parsing"]:::stage
+    M1 --> M2["M2: Pattern Detection"]:::stage
+    M2 -- "High Signal" --> M3["M3: Review & Patch Loop"]:::stage
+    M2 -. "Low Signal" .-> NEG["A2A Budget Negotiation"]:::branch
+    NEG -. "Accepted" .-> M3
+    NEG -. "Declined" .-> M5["M5: Report Generator"]:::stage
+    M3 --> M4["M4: Exploit Verification"]:::stage
+    M4 --> M5
+    M5 --> END(["Audit Trail Sealed"]):::stage
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    <script src="/dashboard.js?v=3.2.0"></script>
+</body>
+</html>

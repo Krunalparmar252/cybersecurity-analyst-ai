@@ -1,0 +1,14 @@
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = [
+    "E501",  # Line too long
+    "W291",  # Trailing whitespace
+    "W293",  # Blank line contains whitespace
+    "E741",  # Ambiguous variable name
+    "F841",  # Local variable assigned but unused
+    "F401",  # Module imported but unused
+]

@@ -1,0 +1,212 @@
+"""
+Orchestrator Agent — routes between specialized agents based on each
+agent's reported status, rather than calling a fixed A->B->C->D sequence.
+
+RE-EXAMINATION CONTEXT (why this file changed from Mid-1):
+The Mid-1 version of this module was a straight-line state machine:
+INGEST -> DETECT -> REASON -> REPORT, every stage unconditionally called
+regardless of what the previous stage found. The review feedback was that
+this is an LLM-augmented pipeline, not an agentic system -- nothing in it
+ever decides its own next action based on what it observes.
+
+This version keeps the same four capabilities (ingest, detect,
+reason+patch, report) but changes HOW they're wired together:
+
+  - Each stage now returns/implies a STATUS, not just data.
+  - The orchestrator inspects that status and DECIDES what happens next
+    -- it can skip a stage, short-circuit to reporting, or (inside the
+    Reasoning stage) delegate to a genuine propose/act/observe/decide
+    loop (see analyst/reasoning/patch_loop.py) instead of a single
+    call-and-trust LLM invocation.
+  - Routing decisions are only knowable at runtime (e.g. "zero candidate
+    findings -> skip straight to REPORT" can't be predicted before
+    DETECT actually runs), which is the concrete, defensible difference
+    between this and a fixed pipeline.
+
+What's still true and unchanged from Mid-1 (say this plainly if asked,
+per the project's "proactive disclosure" convention):
+  - This is still a BOUNDED system -- no unbounded agent loops, no agent
+    can spawn arbitrary new work outside the four defined capabilities.
+  - Statelessness is preserved: no database, artifacts are still written
+    to disk per-stage for resumability/debuggability.
+  - The four capabilities (Ingestion, Detection, Reasoning/Patch,
+    Reporting) are the same four modules as Mid-1 -- we did not invent new
+    unrelated agents, we gave the existing ones decision-making power and
+    a coordinator that respects their decisions.
+"""
+
+from __future__ import annotations
+
+import json
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Optional
+
+from analyst.ingestion.manifest import ingest_repo
+from analyst.detection.engine import run_detection
+from analyst.reasoning.patch_loop import run_patch_verify_loop
+from analyst.reporting.renderer import render_report
+
+
+@dataclass
+class PipelineResult:
+    status: str  # "OK" | "PARTIAL"
+    report_text: str
+    confirmed_count: int
+    rejected_count: int
+    escalated_count: int
+    duration_seconds: float
+    stage_errors: dict
+    routing_log: list = field(default_factory=list)  # human-readable orchestrator decisions
+
+
+def run_pipeline(
+    repo_path: str,
+    output_path: str,
+    artifact_dir: Optional[str] = None,
+    on_stage_start=None,
+    on_stage_done=None,
+    on_route=None,
+) -> PipelineResult:
+    """
+    Run the full pipeline. on_stage_start/on_stage_done are optional
+    callbacks: fn(stage_name: str) -> None, used by the CLI to drive the
+    live progress display. on_route(decision: str) -> None is called
+    whenever the orchestrator makes a routing decision that isn't just
+    "run the next stage" -- used by the CLI to surface agentic behavior
+    live during the demo.
+    """
+    start_time = time.time()
+    stage_errors: dict = {}
+    routing_log: list = []
+    artifact_path = Path(artifact_dir) if artifact_dir else None
+    if artifact_path:
+        artifact_path.mkdir(parents=True, exist_ok=True)
+
+    def route(msg: str):
+        routing_log.append(msg)
+        if on_route:
+            on_route(msg)
+
+    # --- INGESTION AGENT ---
+    if on_stage_start:
+        on_stage_start("INGEST")
+    ingestion = ingest_repo(repo_path)
+    if artifact_path:
+        (artifact_path / "ingestion_manifest.json").write_text(ingestion.manifest.to_json())
+    if on_stage_done:
+        on_stage_done("INGEST")
+
+    parsed_count = sum(1 for f in ingestion.manifest.files if f.parsed)
+    if parsed_count == 0:
+        # DECISION: nothing to analyze -- skip DETECT and REASON entirely
+        # rather than running empty stages. This branch is not reachable
+        # by a fixed-sequence pipeline; it only exists because the
+        # orchestrator inspects INGEST's output before deciding what to
+        # run next.
+        route(
+            "INGEST parsed 0 files -> skipping DETECT and REASON stages, "
+            "routing directly to REPORT."
+        )
+        duration = time.time() - start_time
+        report_text = render_report([], repo_path, duration)
+        Path(output_path).write_text(report_text, encoding="utf-8")
+        return PipelineResult(
+            status="PARTIAL",
+            report_text=report_text,
+            confirmed_count=0,
+            rejected_count=0,
+            escalated_count=0,
+            duration_seconds=duration,
+            stage_errors={"INGEST": "No parseable source files found."},
+            routing_log=routing_log,
+        )
+
+    # --- DETECTION AGENT ---
+    if on_stage_start:
+        on_stage_start("DETECT")
+    candidates = run_detection(ingestion)
+    if artifact_path:
+        (artifact_path / "candidate_findings.json").write_text(
+            json.dumps([c.to_dict() for c in candidates], indent=2)
+        )
+    if on_stage_done:
+        on_stage_done("DETECT")
+
+    if not candidates:
+        # DECISION: no candidates -> the expensive Reasoning/Patch agent
+        # (LLM calls + sandboxed re-verification) would have nothing to
+        # do. Skip it and go straight to REPORT.
+        route("DETECT found 0 candidates -> skipping REASON stage, routing directly to REPORT.")
+        duration = time.time() - start_time
+        report_text = render_report([], repo_path, duration)
+        Path(output_path).write_text(report_text, encoding="utf-8")
+        return PipelineResult(
+            status="OK",
+            report_text=report_text,
+            confirmed_count=0,
+            rejected_count=0,
+            escalated_count=0,
+            duration_seconds=duration,
+            stage_errors={},
+            routing_log=routing_log,
+        )
+
+    # --- REASONING / PATCH-VERIFY AGENT ---
+    # This is the one stage with real internal autonomy: for each
+    # candidate it proposes a patch, applies it to a sandbox, re-runs
+    # DETECT against the patched copy, and decides ACCEPT / RETRY /
+    # ESCALATE on its own -- see patch_loop.py. The orchestrator does not
+    # micromanage that decision; it only reacts to the final verdict.
+    if on_stage_start:
+        on_stage_start("REASON")
+    verify_results = []
+    try:
+        verify_results = run_patch_verify_loop(candidates, ingestion.sources, repo_path)
+        if artifact_path:
+            (artifact_path / "confirmed_findings.json").write_text(
+                json.dumps([r.to_dict() for r in verify_results], indent=2)
+            )
+
+        escalated = [r for r in verify_results if r.loop_status == "ESCALATED"]
+        retried = [r for r in verify_results if r.attempts > 1]
+
+        if retried:
+            route(
+                "REASON agent retried " + str(len(retried)) + " finding(s) after their "
+                "first proposed patch didn't clear re-verification."
+            )
+        if escalated:
+            route(
+                "REASON agent could not verify a fix for " + str(len(escalated)) +
+                " finding(s) within its retry budget -> flagged for human review "
+                "instead of reporting an unverified patch."
+            )
+    except Exception as exc:  # noqa: BLE001 - one bad LLM/agent run must not kill the pipeline
+        stage_errors["REASON"] = str(exc)
+    if on_stage_done:
+        on_stage_done("REASON")
+
+    # --- REPORTING AGENT ---
+    if on_stage_start:
+        on_stage_start("REPORT")
+    confirmed = [r.finding for r in verify_results]
+    duration = time.time() - start_time
+    report_text = render_report(confirmed, repo_path, duration, verify_results=verify_results)
+    Path(output_path).write_text(report_text, encoding="utf-8")
+    if on_stage_done:
+        on_stage_done("REPORT")
+
+    status = "PARTIAL" if stage_errors else "OK"
+    escalated_count = sum(1 for r in verify_results if r.loop_status == "ESCALATED")
+    return PipelineResult(
+        status=status,
+        report_text=report_text,
+        confirmed_count=sum(1 for f in confirmed if f.confirmed),
+        rejected_count=sum(1 for f in confirmed if not f.confirmed),
+        escalated_count=escalated_count,
+        duration_seconds=duration,
+        stage_errors=stage_errors,
+        routing_log=routing_log,
+    )
