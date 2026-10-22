@@ -1,0 +1,45 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Testing and linting caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Databases and archives
+*.db
+*.sqlite
+*.sqlite3
+*.zip
+*.tar.gz
+
+# Node / frontend
+node_modules/
+
+# Generated runs, artifacts, and scan reports
+api_runs/
+artifacts/
+other_artifacts/
+real_artifacts/
+real_world_run/
+tmp_a/
+sandbox/
+demo_backup/
+*report*.md
+*.integrity.json
+tmp_r.md
