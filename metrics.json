@@ -1,0 +1,69 @@
+{
+  "runs": [
+    {
+      "app": "demo_app",
+      "mode": "offline (deterministic fallback)",
+      "ground_truth": 14,
+      "before_reason": {
+        "findings": 14,
+        "true_positives": 14,
+        "false_positives": 0,
+        "recall": 1.0,
+        "fp_rate": 0.0
+      },
+      "after_reason": {
+        "findings": 14,
+        "true_positives": 14,
+        "false_positives": 0,
+        "recall": 1.0,
+        "fp_rate": 0.0
+      },
+      "rejected_by_reason": 0,
+      "patches": {
+        "proposed": 2,
+        "accepted": 2,
+        "validity": 1.0,
+        "confirmed_without_patch": 12
+      },
+      "analysis_tiers": {
+        "T3_DETERMINISTIC": 13,
+        "T4_MANUAL_REVIEW": 1
+      },
+      "manual_review": 1,
+      "run_seconds": 0.11,
+      "pipeline_status": "OK"
+    },
+    {
+      "app": "demo_app_jsts",
+      "mode": "offline (deterministic fallback)",
+      "ground_truth": 14,
+      "before_reason": {
+        "findings": 14,
+        "true_positives": 14,
+        "false_positives": 0,
+        "recall": 1.0,
+        "fp_rate": 0.0
+      },
+      "after_reason": {
+        "findings": 14,
+        "true_positives": 14,
+        "false_positives": 0,
+        "recall": 1.0,
+        "fp_rate": 0.0
+      },
+      "rejected_by_reason": 0,
+      "patches": {
+        "proposed": 0,
+        "accepted": 0,
+        "validity": null,
+        "confirmed_without_patch": 14
+      },
+      "analysis_tiers": {
+        "T3_DETERMINISTIC": 14
+      },
+      "manual_review": 0,
+      "run_seconds": 0.044,
+      "pipeline_status": "OK"
+    }
+  ]
+}
