@@ -1,0 +1,138 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-geist-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-geist-mono: 'Geist Mono', monospace;
+  --font-instrument-serif: 'Instrument Serif', Georgia, serif;
+
+  --bg-canvas: #0A0B0D;
+  --bg-surface: #111317;
+  --bg-surface-subtle: #181B20;
+  --bg-surface-elevated: #1F232B;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --text-primary: #F0F2F5;
+  --text-secondary: #C4CAD1;
+  --text-muted: #9BA3AD;
+  --signal: #C6FF3D;
+  --signal-dim: rgba(198, 255, 61, 0.12);
+  --signal-hover: #B5F228;
+}
+
+.light {
+  --bg-canvas: #F8F9FA;
+  --bg-surface: #FFFFFF;
+  --bg-surface-subtle: #F1F3F5;
+  --bg-surface-elevated: #E9ECEF;
+  --line: rgba(0, 0, 0, 0.08);
+  --line-strong: rgba(0, 0, 0, 0.16);
+  --text-primary: #1A1D20;
+  --text-secondary: #495057;
+  --text-muted: #6C757D;
+  --signal: #16A34A;
+  --signal-dim: rgba(22, 163, 74, 0.12);
+  --signal-hover: #15803D;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-geist-sans);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+/* Tabular figures for telemetry, timers, counters, line numbers */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hairline borders */
+.border-hairline {
+  border-width: 1px;
+  border-color: var(--line);
+}
+
+.border-hairline-t {
+  border-top-width: 1px;
+  border-top-color: var(--line);
+}
+
+.border-hairline-b {
+  border-bottom-width: 1px;
+  border-bottom-color: var(--line);
+}
+
+.border-hairline-l {
+  border-left-width: 1px;
+  border-left-color: var(--line);
+}
+
+.border-hairline-r {
+  border-right-width: 1px;
+  border-right-color: var(--line);
+}
+
+/* Custom minimal scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Focus styles for keyboard navigation */
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+  background-color: var(--signal);
+  color: #0A0B0D;
+}
+
+/* Lenis smooth scrolling */
+html.lenis, html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}

@@ -30,6 +30,9 @@ htmlcov/
 
 # Node / frontend
 node_modules/
+.next/
+out/
+lh_*.json
 
 # Generated runs, artifacts, and scan reports
 api_runs/
@@ -41,5 +44,9 @@ tmp_a/
 sandbox/
 demo_backup/
 *report*.md
+!PERF_REPORT.md
+!SECURITY_REPORT.md
 *.integrity.json
 tmp_r.md
+.analyst_cache/
+
