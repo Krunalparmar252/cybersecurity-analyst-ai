@@ -254,10 +254,11 @@ class SecurityApiClient {
 
     // Dynamic generation based on repository
     const generatedFindings: Finding[] = [];
+    const activeRules = payload.rules || [];
     const repoLeaf = repoClean.includes('/') ? repoClean.split('/').pop() || repoClean : repoClean;
     const targetFilePrefix = repoLeaf ? `${repoLeaf}/src` : 'src';
 
-    if (payload.rules.includes('RULE-PY-SQLI-AST') || payload.rules.length === 0) {
+    if (activeRules.includes('RULE-PY-SQLI-AST') || activeRules.length === 0) {
       generatedFindings.push({
         id: `FND-${newId}-01`,
         ruleId: 'RULE-PY-SQLI-AST',
@@ -289,7 +290,7 @@ class SecurityApiClient {
       });
     }
 
-    if (payload.rules.includes('RULE-PY-SECRET-JWT') || payload.rules.length === 0) {
+    if (activeRules.includes('RULE-PY-SECRET-JWT') || activeRules.length === 0) {
       generatedFindings.push({
         id: `FND-${newId}-02`,
         ruleId: 'RULE-PY-SECRET-JWT',
@@ -321,7 +322,7 @@ class SecurityApiClient {
       });
     }
 
-    if (payload.rules.includes('RULE-PY-PATH-TRAVERSAL') || payload.rules.length === 0) {
+    if (activeRules.includes('RULE-PY-PATH-TRAVERSAL') || activeRules.length === 0) {
       generatedFindings.push({
         id: `FND-${newId}-03`,
         ruleId: 'RULE-PY-PATH-TRAVERSAL',
@@ -353,7 +354,7 @@ class SecurityApiClient {
       });
     }
 
-    if (payload.rules.includes('RULE-PY-XSS-TEMPLATE') || payload.rules.length === 0) {
+    if (activeRules.includes('RULE-PY-XSS-TEMPLATE') || activeRules.length === 0) {
       generatedFindings.push({
         id: `FND-${newId}-04`,
         ruleId: 'RULE-PY-XSS-TEMPLATE',
@@ -422,7 +423,7 @@ class SecurityApiClient {
         `[ORCHESTRATOR] Initialized scan run ${newId} with target: ${payload.targetRepo} (${payload.branch || 'main'})`,
         `[INGESTION] Cloned repository tree ${payload.targetRepo}. AST grammar parser initialized.`,
         `[INGESTION] AST parser validated manifest quality: SUFFICIENT (100% grammar coverage)`,
-        `[DETECTION] Loaded deterministic rules: ${payload.rules.join(', ') || 'ALL_RULES'}`,
+        `[DETECTION] Loaded deterministic rules: ${activeRules.join(', ') || 'ALL_RULES'}`,
         `[DETECTION] Scanned source files in 118ms. Flagged ${generatedFindings.length} candidate vulnerabilities.`,
         payload.offlineMode
           ? `[REASONING] --offline active: Deterministic regex and AST template engine engaged.`

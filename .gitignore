@@ -32,6 +32,8 @@ htmlcov/
 node_modules/
 .next/
 out/
+test-results/
+playwright-report/
 lh_*.json
 
 # Generated runs, artifacts, and scan reports
