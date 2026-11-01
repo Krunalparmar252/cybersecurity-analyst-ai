@@ -38,6 +38,11 @@ python -m analyst scan https://github.com/<org>/<repo> -o report.md
 # Web dashboard + REST/WebSocket API
 uvicorn analyst.api.app:app --port 8000                 # then open http://localhost:8000
 
+# Next.js Studio Frontend (App Router, GSAP Motion, Three.js Hero)
+npm install
+npm run dev                                            # opens at http://localhost:3000
+# Full frontend guide: FRONTEND.md
+
 # Evaluation metrics (recall, FP rate before/after REASON, patch validity, run time)
 python scripts/compute_metrics.py                       # writes metrics.md and metrics.json
 ```
@@ -102,7 +107,7 @@ Document/    specs: rules.md, ARCHITECTURE_A2A.md, ...
 
 ### Rules
 
-Specifications are in `Document/rules.md`. Implemented rules are catalogued in `analyst/detection/rules.yaml` (a test fails if the catalogue and the code disagree), and the rules it lists as not implemented are listed explicitly.
+Specifications are in `Document/rules.md`. Currently, 28 detection rules across Python, JavaScript, and TypeScript are implemented and catalogued in `analyst/detection/rules.yaml` (a test fails if the catalogue and the code disagree), covering SQLI, XSS, Broken Authentication, Command Injection, Path Traversal, Insecure Deserialization, SSRF, and Hardcoded Secrets with zero raw secret leakage.
 
 ## Known limitations
 

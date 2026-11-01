@@ -4,8 +4,10 @@ Mode: **offline (deterministic fallback)**. Match key: file + line + rule_id aga
 
 | App | GT | Recall before | Recall after | FP rate before | FP rate after | Patch validity | Run time |
 |---|---|---|---|---|---|---|---|
-| demo_app | 14 | 100.0% | 100.0% | 0.0% | 0.0% | 100.0% (2/2) | 0.11s |
-| demo_app_jsts | 14 | 100.0% | 100.0% | 0.0% | 0.0% | n/a (0/0) | 0.044s |
+| demo_app | 14 | 100.0% | 100.0% | 0.0% | 0.0% | 100.0% (2/2) | 0.242s |
+| demo_app_jsts | 14 | 100.0% | 100.0% | 0.0% | 0.0% | n/a (0/0) | 0.104s |
+| demo_app_phase1 | 6 | 100.0% | 100.0% | 0.0% | 0.0% | n/a (0/0) | 0.087s |
+| demo_app_phase1_jsts | 9 | 100.0% | 100.0% | 0.0% | 0.0% | n/a (0/0) | 0.138s |
 
 ## Detail
 
@@ -20,6 +22,18 @@ Mode: **offline (deterministic fallback)**. Match key: file + line + rule_id aga
 - Confirmed after REASON: 14 (TP 14, FP 0); rejected by REASON: 0
 - Patches: 0 proposed, 0 accepted; 14 confirmed findings have no auto-patch; 0 routed to manual review
 - Analysis tiers: {'T3_DETERMINISTIC': 14}
+
+### demo_app_phase1
+- Candidates before REASON: 6 (TP 6, FP 0)
+- Confirmed after REASON: 6 (TP 6, FP 0); rejected by REASON: 0
+- Patches: 0 proposed, 0 accepted; 6 confirmed findings have no auto-patch; 0 routed to manual review
+- Analysis tiers: {'T3_DETERMINISTIC': 6}
+
+### demo_app_phase1_jsts
+- Candidates before REASON: 9 (TP 9, FP 0)
+- Confirmed after REASON: 9 (TP 9, FP 0); rejected by REASON: 0
+- Patches: 0 proposed, 0 accepted; 9 confirmed findings have no auto-patch; 0 routed to manual review
+- Analysis tiers: {'T3_DETERMINISTIC': 9}
 
 ## How to read these numbers
 

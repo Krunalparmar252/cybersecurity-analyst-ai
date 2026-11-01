@@ -48,6 +48,7 @@ demo_backup/
 *report*.md
 !PERF_REPORT.md
 !SECURITY_REPORT.md
+!PHASE1_REPORT.md
 *.integrity.json
 tmp_r.md
 .analyst_cache/

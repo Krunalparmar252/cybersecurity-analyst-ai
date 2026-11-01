@@ -61,12 +61,12 @@ llm_confirmation_required: true  # false only for near-zero-FP rules (e.g. exact
 
 ## 4. Cross-Site Scripting (XSS)
 
-| ID | Match Type | Pattern (conceptual) | Languages | Confidence |
-|---|---|---|---|---|
-| XSS-001 | AST | React `dangerouslySetInnerHTML` with a value derived from props/state not passed through a sanitizer | JS/TS (React) | High |
-| XSS-002 | AST | Direct DOM write (`innerHTML =`, `document.write()`) with a non-literal (variable) right-hand side | JavaScript | High |
-| XSS-003 | AST | Server-rendered template with autoescaping explicitly disabled (`{{ var|safe }}` in Jinja2, `<%- var %>` in EJS) | Python (Flask/Jinja2), Node (EJS) | High |
-| XSS-004 | Regex | Flask `render_template_string()` called with request data concatenated into the template string itself | Python | High |
+| ID | Match Type | Pattern (conceptual) | Languages | Confidence | Status |
+|---|---|---|---|---|---|
+| XSS-001 | AST | React `dangerouslySetInnerHTML` with a value derived from props/state not passed through a sanitizer | JS/TS (React) | High | Implemented (`rules_extra.py`) |
+| XSS-002 | AST | Direct DOM write (`innerHTML =`, `document.write()`) with a non-literal (variable) right-hand side | Python, JS/TS | High | Implemented (`engine.py`) |
+| XSS-003 | Regex | Server-rendered template with autoescaping explicitly disabled (`{{ var\|safe }}` in Jinja2, `<%- var %>` in EJS) | Python, JS/TS | High | Implemented (`rules_extra.py`) |
+| XSS-004 | AST | Flask `render_template_string()` called with request data concatenated into the template string itself | Python | High | Implemented (`rules_extra.py`) |
 
 **Confirmation prompt focus:** trace whether the rendered value originates from user-controllable input (query/body/header) and whether any sanitization function appears between source and sink.
 
@@ -74,16 +74,34 @@ llm_confirmation_required: true  # false only for near-zero-FP rules (e.g. exact
 
 ---
 
+## 4.1 Command Injection (CMDINJ)
+
+| ID | Match Type | Pattern (conceptual) | Languages | Confidence | Status |
+|---|---|---|---|---|---|
+| CMDINJ-001 | AST | Command execution (`os.system`, `subprocess` with shell=True) with interpolated request input | Python | High | Implemented (`engine.py`) |
+| CMDINJ-002 | AST | `child_process.exec`/`execSync`/`spawn` (shell: true) with non-literal or concatenated command | JS/TS | High | Implemented (`rules_extra.py`) |
+
+---
+
+## 4.2 Path Traversal (PATHTRAV)
+
+| ID | Match Type | Pattern (conceptual) | Languages | Confidence | Status |
+|---|---|---|---|---|---|
+| PATHTRAV-001 | AST | File system read (`open`, `send_file`) with raw string concat or f-string | Python | High | Implemented (`engine.py`) |
+| PATHTRAV-002 | AST | `fs.readFile`/`writeFile`/`res.sendFile` with tainted input and no path normalization/check | JS/TS | High | Implemented (`rules_extra.py`) |
+
+---
+
 ## 5. Broken Authentication (AUTH)
 
-| ID | Match Type | Pattern (conceptual) | Confidence |
-|---|---|---|---|
-| AUTH-001 | AST | Password compared with `==` / stored directly instead of via a hashing library call (`bcrypt`, `argon2`, `werkzeug.security`) | High |
-| AUTH-002 | AST | Password hashed with a known-weak algorithm (`md5`, `sha1` used directly on a password field) | High |
-| AUTH-003 | AST/Regex | Login/auth route with no rate-limiting decorator/middleware detected in the route's call chain | Medium |
-| AUTH-004 | AST | Session cookie set without `HttpOnly` and/or `Secure` flags in a login/session-creation function | Medium |
-| AUTH-005 | Regex | JWT signed with `alg: none` or a hardcoded/weak symmetric secret under 16 chars | High |
-| AUTH-006 | AST | Session/auth token generated via non-cryptographic RNG (`random.random()`, `Math.random()`) instead of `secrets`/`crypto.randomBytes` | High |
+| ID | Match Type | Pattern (conceptual) | Languages | Confidence | Status |
+|---|---|---|---|---|---|
+| AUTH-001 | AST | Password compared with `==` / stored directly instead of via a hashing library call (`bcrypt`, `argon2`, `werkzeug.security`) | Python | High | Implemented (`rules_extra.py`) |
+| AUTH-002 | AST | Password hashed with a known-weak algorithm (`md5`, `sha1` used directly on a password field) | Python | High | Implemented (`rules_extra.py`) |
+| AUTH-003 | AST/Regex | Login/auth route with no rate-limiting decorator/middleware detected in the route's call chain | Python, JS/TS | Medium | Implemented (`rules_extra.py`) |
+| AUTH-004 | AST | Session cookie set without `HttpOnly` and/or `Secure` flags in a login/session-creation function | Python, JS/TS | Medium | Implemented (`rules_extra.py`) |
+| AUTH-005 | AST | Password compared with `==` / `===` / `!=` / `!==` directly in JavaScript/TypeScript | JS/TS | High | Implemented (`rules_extra.py`) |
+| AUTH-006 | AST | `crypto.createHash('md5'\|'sha1')` applied directly to a password value | JS/TS | High | Implemented (`rules_extra.py`) |
 
 **Confirmation prompt focus:** confirm the flagged function is genuinely part of the authentication surface (uses the ingestion module's auth surface map as a hint) rather than an unrelated password-like field (e.g., a "password strength checker" utility with no storage/comparison implication).
 
@@ -91,12 +109,13 @@ llm_confirmation_required: true  # false only for near-zero-FP rules (e.g. exact
 
 ## 6. Insecure Deserialization / SSRF (DESER / SSRF)
 
-| ID | Match Type | Pattern (conceptual) | Confidence |
-|---|---|---|---|
-| DESER-001 | AST | `pickle.loads()` / `yaml.load()` (without `SafeLoader`) called on data from an external source (request body, file upload) | High |
-| DESER-002 | AST | JS `eval()` or `Function()` constructor called with any non-literal input | High |
-| SSRF-001 | AST | HTTP client call (`requests.get`, `fetch`, `axios.get`) where the URL/host portion is built from unvalidated user input, with no allowlist check preceding it | Medium |
-| SSRF-002 | Regex | Webhook/callback URL fields accepted from request body and used directly in a server-side outbound request | Medium |
+| ID | Match Type | Pattern (conceptual) | Languages | Confidence | Status |
+|---|---|---|---|---|---|
+| DESER-001 | AST | `pickle.loads()` / `yaml.load()` (without `SafeLoader`) called on data from an external source | Python | High | Implemented (`engine.py`) |
+| DESER-002 | AST | JS `eval()` or `Function()` constructor called with any non-literal input | JS/TS | High | Implemented (`rules_extra.py`) |
+| DESER-003 | AST | `node-serialize` `unserialize()`, `yaml.load()` without safe schema, or `vm.runInContext` with non-literal input | JS/TS | High | Implemented (`rules_extra.py`) |
+| SSRF-001 | AST | HTTP client call (`requests.get`, `fetch`, `axios.get`) where URL is built from unvalidated user input without allowlist check | Python, JS/TS | Medium | Implemented (`rules_extra.py`) |
+| SSRF-002 | Regex | Webhook/callback URL fields accepted from request body and used directly in a server-side outbound request | Python, JS/TS | Medium | Planned |
 
 **Confirmation prompt focus:** for SSRF, check whether any allowlist/domain-validation logic exists between input and the outbound call.
 
