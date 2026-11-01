@@ -97,13 +97,12 @@ export default function FindingDetailPage() {
         <div className="flex items-center gap-3">
           <span className="text-text-muted">DISCOVERED: {finding.discoveredAt}</span>
           <span
-            className={`px-2 py-0.5 rounded font-semibold uppercase text-[10px] ${
-              finding.severity === 'critical'
+            className={`px-2 py-0.5 rounded font-semibold uppercase text-[10px] ${finding.severity === 'critical'
                 ? 'bg-severity-critical/20 text-severity-critical border border-severity-critical/30'
                 : finding.severity === 'high'
-                ? 'bg-severity-high/20 text-severity-high border border-severity-high/30'
-                : 'bg-severity-medium/20 text-severity-medium border border-severity-medium/30'
-            }`}
+                  ? 'bg-severity-high/20 text-severity-high border border-severity-high/30'
+                  : 'bg-severity-medium/20 text-severity-medium border border-severity-medium/30'
+              }`}
           >
             {finding.severity}
           </span>
@@ -248,10 +247,10 @@ export default function FindingDetailPage() {
                     isAdd
                       ? 'bg-signal/15 text-signal font-semibold px-1 rounded-sm'
                       : isSub
-                      ? 'bg-severity-critical/15 text-severity-critical font-semibold px-1 rounded-sm'
-                      : isHdr
-                      ? 'text-text-muted font-medium'
-                      : 'text-text-secondary'
+                        ? 'bg-severity-critical/15 text-severity-critical font-semibold px-1 rounded-sm'
+                        : isHdr
+                          ? 'text-text-muted font-medium'
+                          : 'text-text-secondary'
                   }
                 >
                   {line}

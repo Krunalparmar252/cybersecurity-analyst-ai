@@ -29,5 +29,7 @@ tmp_r.md
 *.db
 *.sqlite*
 node_modules/
+.next/
+.taste-skill/
 Dockerfile
 .dockerignore

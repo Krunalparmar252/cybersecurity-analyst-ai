@@ -37,13 +37,69 @@ export default function NewScanPage() {
   });
 
   const [launching, setLaunching] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleToggleRule = (ruleId: string) => {
     setSelectedRules((prev) => ({ ...prev, [ruleId]: !prev[ruleId] }));
   };
 
+  const validateInputs = (): string | null => {
+    const cleanBranch = branch.trim();
+    if (!cleanBranch) return 'Branch name cannot be empty.';
+    if (cleanBranch.startsWith('-')) return 'Branch name cannot start with a dash (-) flag.';
+    if (!/^[a-zA-Z0-9._/-]+$/.test(cleanBranch)) {
+      return 'Branch name contains invalid characters. Only alphanumeric, slash, dot, underscore, and dash are allowed.';
+    }
+
+    if (sourceType === 'git') {
+      const cleanRepo = repoPath.trim();
+      if (!cleanRepo) return 'Git repository URL is required.';
+
+      if (!/^https?:\/\//i.test(cleanRepo)) {
+        return 'Git repository must use a valid HTTPS or HTTP protocol URL.';
+      }
+
+      try {
+        const parsed = new URL(cleanRepo);
+        const host = parsed.hostname.toLowerCase();
+
+        const isPrivateHost =
+          host === 'localhost' ||
+          host === '127.0.0.1' ||
+          host === '0.0.0.0' ||
+          host === '::1' ||
+          host === '169.254.169.254' ||
+          host.startsWith('10.') ||
+          host.startsWith('192.168.') ||
+          /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host);
+
+        if (isPrivateHost) {
+          return `Target host "${host}" is restricted to prevent Server-Side Request Forgery (SSRF).`;
+        }
+      } catch {
+        return 'Invalid repository URL format.';
+      }
+    } else if (sourceType === 'local') {
+      const cleanPath = repoPath.trim();
+      if (!cleanPath) return 'Local directory path is required.';
+      if (cleanPath.includes('..') || cleanPath.includes('\0')) {
+        return 'Directory traversal sequences (..) and null bytes are strictly forbidden.';
+      }
+    }
+
+    return null;
+  };
+
   const handleLaunch = async (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationError(null);
+
+    const error = validateInputs();
+    if (error) {
+      setValidationError(error);
+      return;
+    }
+
     setLaunching(true);
 
     const activeRules = Object.entries(selectedRules)
@@ -372,6 +428,14 @@ export default function NewScanPage() {
             </div>
           </div>
         </div>
+
+        {/* Validation Error Banner */}
+        {validationError && (
+          <div className="p-3 bg-severity-critical/10 border border-severity-critical/30 rounded text-severity-critical font-mono text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{validationError}</span>
+          </div>
+        )}
 
         {/* Submit Launcher Button */}
         <div className="flex items-center justify-end gap-4 pt-2">

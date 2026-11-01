@@ -1,3 +1,4 @@
+import os
 """
 FastAPI application for the cybersecurity analyst web interface.
 Exposes REST endpoints, WebSockets, and static frontend dashboard.
@@ -12,6 +13,7 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 
 from analyst.api.manager import GLOBAL_JOB_MANAGER, JobManager
 
@@ -31,6 +33,25 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+allowed_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+env_origins = os.environ.get("ALLOWED_ORIGINS")
+if env_origins:
+    allowed_origins.extend([o.strip() for o in env_origins.split(",") if o.strip()])
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
+
 
 
 class JobSubmitRequest(BaseModel):
@@ -87,6 +108,15 @@ def get_job_findings(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found.")
     return GLOBAL_JOB_MANAGER.get_findings(job_id)
 
+
+
+@app.post("/api/jobs/{job_id}/apply")
+def apply_job_fixes(job_id: str, target_dir: Optional[str] = None):
+    job = GLOBAL_JOB_MANAGER.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    result = GLOBAL_JOB_MANAGER.apply_fixes(job_id, target_dir=target_dir)
+    return result
 
 @app.get("/api/jobs/{job_id}/fixes")
 def get_job_fixes(job_id: str):
