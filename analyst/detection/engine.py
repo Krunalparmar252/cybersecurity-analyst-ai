@@ -470,10 +470,14 @@ _AST_RULES_BY_LANGUAGE = {
     "python": (
         _find_sqli_python, _find_xss_python, _find_more_vulnerabilities_python,
         rules_extra.find_sqli_002, rules_extra.find_auth_001, rules_extra.find_auth_002,
+        rules_extra.find_xss_004, rules_extra.find_auth_003, rules_extra.find_auth_004,
+        rules_extra.find_ssrf_001_python,
     ),
     "javascript": (
         _find_sqli_javascript, _find_xss_javascript,
         rules_extra.find_xss_001, rules_extra.find_deser_002,
+        rules_extra.find_auth_003_javascript, rules_extra.find_auth_004_javascript,
+        rules_extra.find_ssrf_001_javascript,
     ),
     # TypeScript's tree-sitter grammar reuses the exact same node type names
     # for the constructs these rules key on (call_expression, member_expression,
@@ -484,6 +488,8 @@ _AST_RULES_BY_LANGUAGE = {
     "typescript": (
         _find_sqli_javascript, _find_xss_javascript,
         rules_extra.find_xss_001, rules_extra.find_deser_002,
+        rules_extra.find_auth_003_javascript, rules_extra.find_auth_004_javascript,
+        rules_extra.find_ssrf_001_javascript,
     ),
 }
 
@@ -492,6 +498,9 @@ def _detect_file(ingestion: IngestionResult, language_by_path: dict, rel_path: s
     source = ingestion.sources[rel_path]
     found = list(_find_secrets(source, rel_path))  # runs regardless of AST parse success
     found.extend(rules_extra.find_secrets_extra(source, rel_path))
+    gitignore_bytes = ingestion.sources.get(".gitignore")
+    gitignore_text = gitignore_bytes.decode("utf-8", errors="replace") if gitignore_bytes else None
+    found.extend(rules_extra.find_secret_008(rel_path, gitignore_text))
     found.extend(rules_extra.find_xss_003(source, rel_path))  # template text: source-level
     tree = ingestion.asts.get(rel_path)
     if tree is not None:
@@ -505,7 +514,7 @@ def _detect_file(ingestion: IngestionResult, language_by_path: dict, rel_path: s
 # so one defect is reported once (and counted once in the metrics).
 _SUPERSEDED_BY = {
     "SQLI-001": {"SQLI-002"},
-    "SECRET-005": {"SECRET-001", "SECRET-002", "SECRET-003", "SECRET-006"},
+    "SECRET-005": {"SECRET-001", "SECRET-002", "SECRET-003", "SECRET-004", "SECRET-006"},
 }
 
 

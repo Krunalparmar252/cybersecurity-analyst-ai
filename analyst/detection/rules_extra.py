@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import math
 import re
+from pathlib import Path
+from typing import Optional
 
 from analyst.common.types import CandidateFinding
 
@@ -21,6 +23,7 @@ from analyst.common.redact import (  # noqa: E402  single source for secret shap
     AWS_KEY_ID_RE as _AWS_KEY_ID_RE,
     AWS_SECRET_RE as _AWS_SECRET_RE,
     GH_TOKEN_RE as _GH_TOKEN_RE,
+    JWT_RE as _JWT_RE,
     PRIVKEY_RE as _PRIVKEY_RE,
     redact_value as _redact,
 )
@@ -224,6 +227,13 @@ def find_secrets_extra(source: bytes, rel_path: str) -> list[CandidateFinding]:
             report("SECRET-002", m.group(1))
         for m in _GH_TOKEN_RE.finditer(line):
             report("SECRET-003", m.group(0))
+        for m in _JWT_RE.finditer(line):
+            val = m.group(0)
+            if any(val in c or c in val for c in claimed):
+                continue
+            if _PLACEHOLDER_RE.search(val) or "{" in val:
+                continue
+            report("SECRET-004", val, "medium")
         if _PRIVKEY_RE.search(line):
             # The header itself is not secret material, but the key body on
             # following lines is; report the header line and never echo body.
@@ -238,3 +248,304 @@ def find_secrets_extra(source: bytes, rel_path: str) -> list[CandidateFinding]:
             if len(val) >= ENTROPY_MIN_LEN and shannon_entropy(val) >= ENTROPY_MIN_BITS:
                 report("SECRET-006", val, "low")
     return out
+
+
+# ---------------------------------------------------------------------------
+# SECRET-008: Tracked .env file present in repository (not in .gitignore).
+# ---------------------------------------------------------------------------
+def find_secret_008(rel_path: str, gitignore_content: Optional[str] = None) -> list[CandidateFinding]:
+    p = re.split(r"[\\/]", rel_path)[-1]
+    if p in (".env", ".env.local", ".env.production", ".env.development") or p.startswith(".env."):
+        if gitignore_content:
+            for line in gitignore_content.splitlines():
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    pattern = line.strip("/")
+                    if pattern in (".env", ".env*", p) or (pattern.startswith(".env") and p.startswith(".env")):
+                        return []
+        return [_mk("SECRET-008", "Hardcoded Secrets", rel_path, 1,
+                    ".env file present in repository (potential credential exposure)", "medium", "secrets")]
+    return []
+
+
+# ---------------------------------------------------------------------------
+# XSS-004 (Python): Flask render_template_string() called with tainted template.
+# ---------------------------------------------------------------------------
+def find_xss_004(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
+    out = []
+    for node in _walk(tree.root_node):
+        if node.type != "call":
+            continue
+        fn = node.child_by_field_name("function")
+        args = node.child_by_field_name("arguments")
+        if fn is None or args is None:
+            continue
+        if _text(source, fn).rsplit(".", 1)[-1] != "render_template_string":
+            continue
+        named = args.named_children
+        if not named:
+            continue
+        first = named[0]
+        first_text = _text(source, first)
+        call_text = _text(source, node)
+
+        is_tainted = False
+        if first.type == "string" and ('{' in first_text and ('f"' in first_text or "f'" in first_text)):
+            is_tainted = True
+        elif first.type == "binary_operator" and any(op in first_text for op in ("+", "%")):
+            is_tainted = True
+        elif first.type == "call" and ".format" in first_text:
+            is_tainted = True
+        elif first.type == "identifier":
+            var_name = first_text
+            scope = node.parent
+            while scope is not None and scope.type != "function_definition":
+                scope = scope.parent
+            if scope is not None:
+                for n in _walk(scope):
+                    if n.type == "assignment":
+                        left = n.child_by_field_name("left")
+                        right = n.child_by_field_name("right")
+                        if left and right and _text(source, left) == var_name:
+                            rtext = _text(source, right)
+                            if ('f"' in rtext or "f'" in rtext or "+" in rtext or "%" in rtext or
+                                ".format" in rtext or "request." in rtext):
+                                is_tainted = True
+                                break
+        if is_tainted:
+            out.append(_mk("XSS-004", "Cross-Site Scripting", rel_path, node.start_point[0] + 1, call_text, "high"))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# AUTH-003: Login/auth route with no rate-limiting decorator/middleware.
+# ---------------------------------------------------------------------------
+_AUTH_ROUTE_RE = re.compile(r"/(login|signin|auth|token|authenticate)\b", re.IGNORECASE)
+_AUTH_FUNC_NAME_RE = re.compile(r"^(login|signin|authenticate|auth_user|token|auth)$", re.IGNORECASE)
+_AUTH_ACTION_RE = re.compile(r"(check_password_hash|verify_password|authenticate|login_user|create_access_token|set_cookie|session\[|jwt\.encode)", re.IGNORECASE)
+_RATE_LIMIT_RE = re.compile(r"(limit|limiter|ratelimit|throttle)", re.IGNORECASE)
+
+
+def find_auth_003(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
+    out = []
+    for node in _walk(tree.root_node):
+        if node.type == "decorated_definition":
+            decorators = [c for c in node.children if c.type == "decorator"]
+            func_node = next((c for c in node.children if c.type == "function_definition"), None)
+            if func_node is None or not decorators:
+                continue
+            is_route = False
+            is_auth_route = False
+            has_rate_limit = False
+            for dec in decorators:
+                dtext = _text(source, dec)
+                if any(kw in dtext for kw in ("route", "post", "get", "put")):
+                    is_route = True
+                    if _AUTH_ROUTE_RE.search(dtext):
+                        is_auth_route = True
+                if _RATE_LIMIT_RE.search(dtext):
+                    has_rate_limit = True
+
+            fname_node = func_node.child_by_field_name("name")
+            if fname_node and _AUTH_FUNC_NAME_RE.search(_text(source, fname_node)):
+                is_auth_route = True
+
+            func_text = _text(source, func_node)
+            has_auth_action = bool(_AUTH_ACTION_RE.search(func_text))
+
+            if is_route and is_auth_route and has_auth_action and not has_rate_limit:
+                out.append(_mk("AUTH-003", "Broken Authentication", rel_path,
+                               func_node.start_point[0] + 1, _text(source, decorators[0]), "medium"))
+    return out
+
+
+def find_auth_003_javascript(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
+    out = []
+    for node in _walk(tree.root_node):
+        if node.type == "call_expression":
+            fn = node.child_by_field_name("function")
+            args = node.child_by_field_name("arguments")
+            if fn is None or args is None:
+                continue
+            fn_text = _text(source, fn)
+            if not any(fn_text.endswith("." + m) for m in ("post", "get", "put", "route", "use")):
+                continue
+            args_named = args.named_children
+            if not args_named:
+                continue
+            first_arg = _text(source, args_named[0])
+            if not _AUTH_ROUTE_RE.search(first_arg):
+                continue
+            call_text = _text(source, node)
+            if not _AUTH_ACTION_RE.search(call_text) and "password" not in call_text.lower():
+                continue
+            if not _RATE_LIMIT_RE.search(call_text):
+                out.append(_mk("AUTH-003", "Broken Authentication", rel_path,
+                               node.start_point[0] + 1, call_text[:200], "medium"))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# AUTH-004: Session cookie set without HttpOnly and/or Secure flags.
+# ---------------------------------------------------------------------------
+def find_auth_004(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
+    out = []
+    for node in _walk(tree.root_node):
+        if node.type != "call":
+            continue
+        fn = node.child_by_field_name("function")
+        args = node.child_by_field_name("arguments")
+        if fn is None or args is None:
+            continue
+        if _text(source, fn).rsplit(".", 1)[-1] != "set_cookie":
+            continue
+        call_text = _text(source, node)
+        has_httponly = bool(re.search(r"httponly\s*=\s*True", call_text, re.IGNORECASE))
+        has_secure = bool(re.search(r"secure\s*=\s*True", call_text, re.IGNORECASE))
+        if not (has_httponly and has_secure):
+            out.append(_mk("AUTH-004", "Broken Authentication", rel_path,
+                           node.start_point[0] + 1, call_text[:200], "medium"))
+    return out
+
+
+def find_auth_004_javascript(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
+    out = []
+    for node in _walk(tree.root_node):
+        if node.type != "call_expression":
+            continue
+        fn = node.child_by_field_name("function")
+        args = node.child_by_field_name("arguments")
+        if fn is None or args is None:
+            continue
+        fn_text = _text(source, fn)
+        if not (fn_text.endswith(".cookie") or fn_text.endswith(".setCookie") or fn_text.endswith(".set_cookie")):
+            continue
+        call_text = _text(source, node)
+        has_httponly = bool(re.search(r"httpOnly\s*:\s*true", call_text, re.IGNORECASE))
+        has_secure = bool(re.search(r"secure\s*:\s*true", call_text, re.IGNORECASE))
+        if not (has_httponly and has_secure):
+            out.append(_mk("AUTH-004", "Broken Authentication", rel_path,
+                           node.start_point[0] + 1, call_text[:200], "medium"))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# SSRF-001: HTTP client call with user-controlled URL without allowlist.
+# ---------------------------------------------------------------------------
+_SSRF_PY_CALLS = re.compile(r"(requests\.(get|post|put|delete|request)|urllib\.request\.urlopen|urlopen|httpx\.(get|post|put|delete|request)|aiohttp\..*\.get|session\.(get|post))")
+_SSRF_JS_CALLS = re.compile(r"(fetch|axios(\.(get|post|put|delete))?|http\.(get|request)|https\.(get|request))")
+_ALLOWLIST_RE = re.compile(r"(ALLOWED_HOSTS|ALLOWED_DOMAINS|ALLOWLIST|ALLOWED_URLS|ALLOWED_ORIGINS|is_safe_url|urlparse|startswith|whitelist)", re.IGNORECASE)
+
+
+def find_ssrf_001_python(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
+    out = []
+    for node in _walk(tree.root_node):
+        if node.type != "call":
+            continue
+        fn = node.child_by_field_name("function")
+        args = node.child_by_field_name("arguments")
+        if fn is None or args is None:
+            continue
+        fn_text = _text(source, fn)
+        if not _SSRF_PY_CALLS.search(fn_text):
+            continue
+        named = args.named_children
+        if not named:
+            continue
+        first = named[0]
+        first_text = _text(source, first)
+        call_text = _text(source, node)
+
+        # Constant literal string without formatting -> safe
+        if first.type == "string" and not any(c in first_text for c in ("{", "%")) and not first_text.startswith("f"):
+            continue
+
+        scope = node.parent
+        while scope is not None and scope.type != "function_definition":
+            scope = scope.parent
+        scope_text = _text(source, scope) if scope else _text(source, tree.root_node)
+        if _ALLOWLIST_RE.search(scope_text):
+            continue
+
+        is_tainted = False
+        if first.type == "string" and ('{' in first_text and ('f"' in first_text or "f'" in first_text)):
+            is_tainted = True
+        elif first.type == "binary_operator" and "+" in first_text:
+            is_tainted = True
+        elif first.type == "identifier":
+            var_name = first_text
+            if scope:
+                for n in _walk(scope):
+                    if n.type == "assignment":
+                        left = n.child_by_field_name("left")
+                        right = n.child_by_field_name("right")
+                        if left and right and _text(source, left) == var_name:
+                            rtext = _text(source, right)
+                            if "request." in rtext or "req." in rtext or "+" in rtext or "f" in rtext:
+                                is_tainted = True
+                                break
+                    elif n.type == "parameters":
+                        if var_name in _text(source, n):
+                            is_tainted = True
+        if is_tainted:
+            out.append(_mk("SSRF-001", "Server-Side Request Forgery", rel_path,
+                           node.start_point[0] + 1, call_text[:200], "medium"))
+    return out
+
+
+def find_ssrf_001_javascript(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
+    out = []
+    for node in _walk(tree.root_node):
+        if node.type != "call_expression":
+            continue
+        fn = node.child_by_field_name("function")
+        args = node.child_by_field_name("arguments")
+        if fn is None or args is None:
+            continue
+        fn_text = _text(source, fn)
+        if not _SSRF_JS_CALLS.search(fn_text):
+            continue
+        named = args.named_children
+        if not named:
+            continue
+        first = named[0]
+        first_text = _text(source, first)
+        call_text = _text(source, node)
+
+        # Constant literal string -> safe
+        if first.type == "string" or (first.type == "template_string" and not any(
+                c.type == "template_substitution" for c in first.children)):
+            continue
+
+        scope = node.parent
+        while scope is not None and scope.type not in ("function_declaration", "arrow_function", "function_expression"):
+            scope = scope.parent
+        scope_text = _text(source, scope) if scope else _text(source, tree.root_node)
+        if _ALLOWLIST_RE.search(scope_text):
+            continue
+
+        is_tainted = False
+        if first.type == "template_string" and any(c.type == "template_substitution" for c in first.children):
+            is_tainted = True
+        elif first.type == "binary_expression" and "+" in first_text:
+            is_tainted = True
+        elif first.type == "identifier":
+            var_name = first_text
+            if scope:
+                for n in _walk(scope):
+                    if n.type == "variable_declarator":
+                        name_node = n.child_by_field_name("name")
+                        val_node = n.child_by_field_name("value")
+                        if name_node and val_node and _text(source, name_node) == var_name:
+                            vtext = _text(source, val_node)
+                            if "req." in vtext or "+" in vtext or "${" in vtext:
+                                is_tainted = True
+                                break
+                    elif n.type == "formal_parameters":
+                        if var_name in _text(source, n):
+                            is_tainted = True
+        if is_tainted:
+            out.append(_mk("SSRF-001", "Server-Side Request Forgery", rel_path,
+                           node.start_point[0] + 1, call_text[:200], "medium"))
+    return out
+

@@ -15,6 +15,7 @@ import re
 AWS_KEY_ID_RE = re.compile(r"\bAKIA[0-9A-Z]{16}\b")
 AWS_SECRET_RE = re.compile(r"""aws_secret_access_key\s*[:=]\s*['"]([A-Za-z0-9/+=]{40})['"]""", re.IGNORECASE)
 GH_TOKEN_RE = re.compile(r"\bgh[pousr]_[A-Za-z0-9]{36}\b")
+JWT_RE = re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b")
 PRIVKEY_RE = re.compile(r"-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----")
 # name = "literal" where the name suggests a credential (same shape as SECRET-005)
 GENERIC_ASSIGN_RE = re.compile(
@@ -34,7 +35,7 @@ def scrub_text(text: str) -> str:
     Idempotent: already-redacted text is left unchanged."""
     if not text:
         return text
-    for rx in (AWS_KEY_ID_RE, GH_TOKEN_RE):
+    for rx in (AWS_KEY_ID_RE, GH_TOKEN_RE, JWT_RE):
         text = rx.sub(lambda m: redact_value(m.group(0)), text)
 
     def _inner(m: re.Match) -> str:

@@ -1,4 +1,3 @@
-import os
 """
 FastAPI application for the cybersecurity analyst web interface.
 Exposes REST endpoints, WebSockets, and static frontend dashboard.
@@ -6,6 +5,7 @@ Exposes REST endpoints, WebSockets, and static frontend dashboard.
 
 from __future__ import annotations
 
+import os
 import asyncio
 from pathlib import Path
 from contextlib import asynccontextmanager

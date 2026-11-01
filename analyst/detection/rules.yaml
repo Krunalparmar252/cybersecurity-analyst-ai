@@ -23,5 +23,11 @@ rules:
   - {id: SECRET-005, class: Hardcoded Secrets, match: regex, languages: [any-ingested], module: engine, redacted: true}
   - {id: SECRET-006, class: Hardcoded Secrets, match: entropy, languages: [any-ingested], module: rules_extra, redacted: true, note: "len>=20, Shannon entropy>=4.0 bits/char"}
   - {id: SECRET-007, class: Hardcoded Secrets, match: regex, languages: [any-ingested], module: rules_extra, note: "header only; key body never echoed. Only fires in ingested source-language files (.pem is not ingested)"}
+  - {id: XSS-004, class: Cross-Site Scripting, match: ast, languages: [python], module: rules_extra, note: "Flask render_template_string() called with tainted template string"}
+  - {id: AUTH-003, class: Broken Authentication, match: ast, languages: [python, javascript, typescript], module: rules_extra, note: "Login/auth route with no rate-limiting decorator/middleware"}
+  - {id: AUTH-004, class: Broken Authentication, match: ast, languages: [python, javascript, typescript], module: rules_extra, note: "Session cookie set without HttpOnly and/or Secure flags"}
+  - {id: SSRF-001, class: Server-Side Request Forgery, match: ast, languages: [python, javascript, typescript], module: rules_extra, note: "HTTP client call with user-controlled URL without allowlist validation"}
+  - {id: SECRET-004, class: Hardcoded Secrets, match: regex, languages: [any-ingested], module: rules_extra, redacted: true, note: "Hardcoded JWT literal"}
+  - {id: SECRET-008, class: Hardcoded Secrets, match: file-pattern, languages: [any-ingested], module: rules_extra, note: ".env file present and tracked in git"}
 # Specified in rules.md but NOT implemented (listed so the gap is explicit).
-not_implemented: [XSS-004, AUTH-003, AUTH-004, SSRF-001, SECRET-004, SECRET-008]
+not_implemented: []
