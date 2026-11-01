@@ -1,0 +1,74 @@
+[
+  {
+    "id": "GT-P1-JS-SECRET-004",
+    "file": "server.js",
+    "line": 17,
+    "rule_id": "SECRET-004",
+    "class": "Hardcoded Secrets",
+    "description": "Hardcoded JWT secret token literal in JavaScript"
+  },
+  {
+    "id": "GT-P1-JS-AUTH-003",
+    "file": "server.js",
+    "line": 26,
+    "rule_id": "AUTH-003",
+    "class": "Broken Authentication",
+    "description": "Authentication route with no rate-limiting middleware"
+  },
+  {
+    "id": "GT-P1-JS-AUTH-005",
+    "file": "server.js",
+    "line": 31,
+    "rule_id": "AUTH-005",
+    "class": "Broken Authentication",
+    "description": "Plaintext password comparison using strict equality operator"
+  },
+  {
+    "id": "GT-P1-JS-AUTH-006",
+    "file": "server.js",
+    "line": 33,
+    "rule_id": "AUTH-006",
+    "class": "Broken Authentication",
+    "description": "Weak hashing algorithm MD5 applied to password value"
+  },
+  {
+    "id": "GT-P1-JS-AUTH-004",
+    "file": "server.js",
+    "line": 36,
+    "rule_id": "AUTH-004",
+    "class": "Broken Authentication",
+    "description": "Session cookie set without httpOnly and secure flags in Express"
+  },
+  {
+    "id": "GT-P1-JS-CMDINJ-002",
+    "file": "server.js",
+    "line": 74,
+    "rule_id": "CMDINJ-002",
+    "class": "Command Injection",
+    "description": "Command execution via child_process.exec with interpolated query input"
+  },
+  {
+    "id": "GT-P1-JS-PATHTRAV-002",
+    "file": "server.js",
+    "line": 96,
+    "rule_id": "PATHTRAV-002",
+    "class": "Path Traversal",
+    "description": "File system access via fs.readFile using untrusted user input without path validation"
+  },
+  {
+    "id": "GT-P1-JS-DESER-003",
+    "file": "server.js",
+    "line": 124,
+    "rule_id": "DESER-003",
+    "class": "Unsafe Deserialization",
+    "description": "Unsafe deserialization of request payload using node-serialize"
+  },
+  {
+    "id": "GT-P1-JS-SSRF-001",
+    "file": "server.js",
+    "line": 139,
+    "rule_id": "SSRF-001",
+    "class": "Server-Side Request Forgery",
+    "description": "Outbound HTTP request via fetch using user-controlled URL without allowlist"
+  }
+]

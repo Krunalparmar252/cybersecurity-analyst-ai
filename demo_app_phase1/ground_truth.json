@@ -1,0 +1,50 @@
+[
+  {
+    "id": "GT-P1-SECRET-008",
+    "file": ".env",
+    "line": 1,
+    "rule_id": "SECRET-008",
+    "class": "Hardcoded Secrets",
+    "description": "Tracked .env configuration file present in repository"
+  },
+  {
+    "id": "GT-P1-SECRET-004",
+    "file": "app.py",
+    "line": 11,
+    "rule_id": "SECRET-004",
+    "class": "Hardcoded Secrets",
+    "description": "Hardcoded JWT secret token literal in source file"
+  },
+  {
+    "id": "GT-P1-XSS-004",
+    "file": "app.py",
+    "line": 23,
+    "rule_id": "XSS-004",
+    "class": "Cross-Site Scripting",
+    "description": "Flask render_template_string() called with interpolated f-string template"
+  },
+  {
+    "id": "GT-P1-AUTH-003",
+    "file": "app.py",
+    "line": 33,
+    "rule_id": "AUTH-003",
+    "class": "Broken Authentication",
+    "description": "Authentication route with no rate-limiting decorator"
+  },
+  {
+    "id": "GT-P1-AUTH-004",
+    "file": "app.py",
+    "line": 39,
+    "rule_id": "AUTH-004",
+    "class": "Broken Authentication",
+    "description": "Session cookie set without HttpOnly and Secure flags"
+  },
+  {
+    "id": "GT-P1-SSRF-001",
+    "file": "app.py",
+    "line": 74,
+    "rule_id": "SSRF-001",
+    "class": "Server-Side Request Forgery",
+    "description": "User-supplied URL reaching requests.get() without allowlist validation"
+  }
+]

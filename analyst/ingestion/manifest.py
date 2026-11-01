@@ -180,7 +180,8 @@ def ingest_repo(
                     entry.parsed = True
                 except Exception as exc:  # noqa: BLE001 - deliberately broad, see docstring
                     entry.parse_error = str(exc)
-            out.append((entry, raw if language else None, tree))
+            is_text_config = file_path.name.startswith(".env") or file_path.name == ".gitignore"
+            out.append((entry, raw if (language or is_text_config) else None, tree))
         return out
 
     files: list[FileEntry] = []

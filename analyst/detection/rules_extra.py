@@ -128,7 +128,7 @@ def find_xss_003(source: bytes, rel_path: str) -> list[CandidateFinding]:
 # compared as plaintext instead of via a hash-verification call.
 # ---------------------------------------------------------------------------
 _PW_NAME = re.compile(r"password|passwd|pwd", re.IGNORECASE)
-_HASH_VERIFY = re.compile(r"(check_password_hash|checkpw|verify|compare_digest|argon2|bcrypt|hash)", re.IGNORECASE)
+_HASH_VERIFY = re.compile(r"(check_password_hash|checkpw|verify|compare_digest|argon2|bcrypt|timingSafeEqual)", re.IGNORECASE)
 
 
 def find_auth_001(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:

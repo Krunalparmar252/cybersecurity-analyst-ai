@@ -518,6 +518,7 @@ def _detect_file(ingestion: IngestionResult, language_by_path: dict, rel_path: s
 # so one defect is reported once (and counted once in the metrics).
 _SUPERSEDED_BY = {
     "SQLI-001": {"SQLI-002"},
+    "XSS-002": {"XSS-004"},
     "SECRET-005": {"SECRET-001", "SECRET-002", "SECRET-003", "SECRET-004", "SECRET-006"},
 }
 
