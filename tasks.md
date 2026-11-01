@@ -4,15 +4,12 @@ This is the SHORT, granular to-do list for the CURRENT step only. It gets
 rewritten/trimmed as work progresses — implementation-plan.md is the
 permanent record, this file is scratch for "what am I doing right now".
 
-## Completed: B-5 — Reporting and CLI flag ✓
+## Completed: C-1 ✓  C-2 ✓  C-3 ✓  C-4 ✓  C-5 ✓  C-6 ✓
 
-- [x] Add `--dynamic` CLI flag to `analyst/__main__.py`.
-- [x] Update `run_pipeline` in `pipeline.py` and `run_pipeline_graph` in `graph.py` to accept the `dynamic` flag.
-- [x] Condition exploit verification in Orchestrator logic on `dynamic` flag.
-- [x] Update `analyst/reporting/renderer.py` to show per-finding exploit verdict.
-- [x] Update `analyst/reporting/renderer.py` to show aggregate line "N/M findings verified by exploit vs static-only".
-- [x] Fix `_VerifyState` and logic in `agent.py` to correctly map verdicts.
-- [x] Test everything end-to-end.
-
-## Up next (do not start until told to)
-- Final wrap-up / project complete.
+Track C (Incremental / Differential Scanning) is fully completed:
+- [x] C-1 — Scan cache schema + load/save helpers
+- [x] C-2 — Git diff/status change detection + ChangedFileSet
+- [x] C-3 — Orchestrator wiring + DETECT skip logic
+- [x] C-4 — REASON/EXPLOIT skip already-resolved findings
+- [x] C-5 — Reporting summary line + cache write-back at end of every run
+- [x] C-6 — CLI flag (`--incremental`) + fallback behavior

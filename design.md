@@ -153,3 +153,36 @@ Full requirements in requirements.md section 3. Architectural decisions:
 - Do not commit `.venv/` — confirm `.gitignore` covers it (fixed once
   already, re-check if venv issues recur).
 - Never log, print, or commit secrets/API keys. `.env` must stay out of git.
+
+### 9. Incremental scanning — design (Track C, new)
+
+- New module: `analyst/ingestion/scan_cache.py` — handles reading/writing
+  `.analyst_cache/last_scan.json`, schema validation, and the
+  changed-files-via-git-diff logic. Keep this separate from the manifest
+  code (`analyst/ingestion/manifest.py`) — the manifest is about integrity
+  of THIS run, the scan cache is about comparing TO a PREVIOUS run. Don't
+  merge the two concepts.
+- `get_changed_files(repo_root, last_commit) -> ChangedFileSet` — a plain
+  function wrapping `git diff --name-only` + `git status --porcelain`
+  subprocess calls. Returns three sets: added, modified, deleted. If
+  `last_commit` is None, or the subprocess call fails (not a git repo,
+  git not installed), return a sentinel meaning "do a full scan" — the
+  caller decides what to do with that, this function never decides to
+  silently do nothing.
+- Orchestrator (`pipeline.py`/`graph.py`) gains an `incremental: bool` param
+  (mirrors the existing `offline` and `dynamic` params). When true, it reads
+  the cache (if present), computes the changed set, and passes it down to
+  DETECT so DETECT only runs its rule scan on that subset. Findings for
+  files outside that set are pulled from the cache and merged into the
+  result with `scan_mode="carried_forward"`.
+- REASON/EXPLOIT check `scan_mode` + whether a finding was already resolved
+  in the cache before deciding whether to re-run — this is where the actual
+  LLM-call savings come from.
+- At the end of a run, write the updated cache (current HEAD commit +
+  merged findings) — same place regardless of whether the run was
+  incremental or full, so a full run also refreshes the baseline for next
+  time.
+- CLI: new `--incremental` flag in `analyst/__main__.py`, off by default,
+  same pattern as `--offline`/`--dynamic`.
+
+---

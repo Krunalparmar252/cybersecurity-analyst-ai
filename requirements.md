@@ -173,3 +173,81 @@ not just that a rule stopped matching.
 - A second LLM provider/API as a fallback.
 - Training a custom ML model for exploit generation.
 - Any live/network-facing execution — everything stays local and sandboxed.
+
+
+### 4. New Requirement — Incremental / Differential Scanning (Track C)
+
+#### 4.1 Problem being solved
+Every scan currently re-processes the entire repository, even when only one
+file changed since the last run. This wastes time and, more importantly,
+wastes LLM calls (REASON/EXPLOIT re-run on findings that were already
+resolved in a previous run).
+
+#### 4.2 Goal
+On a second (and later) scan of the same repo, only re-run detection/
+reasoning/exploit-verification on files that actually changed since the last
+scan (via git diff). Unchanged files keep their previous findings, clearly
+labeled as carried forward, not re-scanned.
+
+#### 4.3 Scope (v1)
+- Opt-in only, via `--incremental` CLI flag. Default behavior (no flag)
+  is unchanged — always a full scan. This must never silently change
+  default behavior.
+- Only applies when the target is a git repository. If it is not a git
+  repo, or no previous scan cache exists, `--incremental` falls back to a
+  full scan automatically (and says so in the output — never fails, never
+  silently does nothing).
+- Comparison is against the last successful scan of the SAME repo path,
+  tracked via a local cache file (see 4.4).
+
+#### 4.4 Functional requirements
+- **Cache file**: `.analyst_cache/last_scan.json` inside the scanned repo
+  root (sits next to `.git/`, travels with the repo). Must be added to the
+  target repo's `.gitignore` recommendation (document this, don't force-edit
+  the user's repo's gitignore automatically without asking).
+  Schema:
+  ```json
+  {
+    "schema_version": 1,
+    "repo_path": "<absolute path scanned>",
+    "last_commit": "<git commit sha at time of that scan, or null if dirty>",
+    "scanned_at": "<ISO 8601 timestamp>",
+    "findings_by_file": {
+      "<relative file path>": [ /* serialized finding records */ ]
+    }
+  }
+  ```
+- **Change detection**: use `git diff --name-only <last_commit>..HEAD` plus
+  `git status --porcelain` (for uncommitted edits) to compute the set of
+  changed, added, and deleted files since the cached commit.
+- **INGEST** still walks the full repo and computes manifest digests for
+  every file (this is cheap and is required for integrity/salt purposes —
+  do NOT skip ingestion, only skip the expensive detection/reasoning steps).
+- **DETECT** only runs its actual rule scanning (AST + regex) on files in
+  the changed/added set. For files NOT in that set, their findings are
+  carried forward unchanged from the cache, tagged
+  `scan_mode: "carried_forward"` (vs `"rescanned"` for freshly analyzed
+  files) so the report is honest about what happened this run.
+- **Deleted files**: findings belonging to files no longer present are
+  dropped from the merged result, not carried forward.
+- **REASON / patch loop / EXPLOIT verification**: skip re-processing a
+  finding that is carried forward AND was already resolved (patched +
+  verified) in the cached result — this is the main point of the feature,
+  avoiding repeated LLM/exploit-agent calls on already-fixed code.
+- **Cache update**: at the end of a scan (incremental or full), write/update
+  the cache file with the current commit hash and the merged findings set
+  (carried-forward + freshly scanned), so the next run has a fresh baseline.
+- **Reporting**: show a one-line scan summary, e.g.
+  "Incremental scan: 2 files re-scanned, 14 carried forward from previous
+  run (commit a3f9c21)." Each finding in the report shows its scan_mode.
+
+#### 4.5 Non-functional requirements
+- Must never produce a report that looks "full" when it was actually
+  incremental — always show the scan summary line stating the mode.
+- Must fail safe: if the cache file is corrupted, unreadable, or its
+  schema_version doesn't match, fall back to a full scan and say so —
+  never crash, never silently skip files.
+- No new dependencies — git is invoked via subprocess (already a
+  reasonable assumption since this only applies to git repos).
+
+---

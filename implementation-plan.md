@@ -85,3 +85,34 @@ the next. Do not combine steps.
   payload library + agentic loop was chosen instead.
 - Scope limited to SQLi + XSS on demo_app for v1 — command injection, path
   traversal, deserialization intentionally deferred.
+
+
+## Track C — Incremental / Differential Scanning (new, current priority
+## once Track B is confirmed stable)
+
+Full spec: requirements.md section 4, design.md section 9.
+
+- [ ] C-1 — `analyst/ingestion/scan_cache.py`: cache file schema, read/write
+      functions, schema validation with fallback to "no cache" on any
+      mismatch/corruption. No git logic yet, just the cache file I/O —
+      unit-testable in isolation.
+- [ ] C-2 — `get_changed_files()`: git diff/status subprocess wrapper.
+      Returns added/modified/deleted sets, or a "not available" sentinel
+      when not a git repo or last_commit is None. No orchestrator wiring
+      yet.
+- [ ] C-3 — Wire `incremental` flag through `pipeline.py`/`graph.py`,
+      INGEST still runs fully, DETECT only re-scans the changed set when
+      incremental mode + a usable cache are both present. Carried-forward
+      findings merged in with `scan_mode` tagging.
+- [ ] C-4 — REASON/EXPLOIT skip already-resolved carried-forward findings.
+      This is the actual payoff step — verify it with a before/after LLM
+      call count, not just "tests pass."
+- [ ] C-5 — Reporting: scan summary line + per-finding scan_mode shown.
+      Cache write/update at end of every run (incremental or full).
+- [ ] C-6 — `--incremental` CLI flag wiring + fallback behavior when not a
+      git repo (full scan, with a message saying why).
+
+Each step independently passes the full test suite before moving to the
+next, same discipline as Track B.
+
+---
