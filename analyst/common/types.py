@@ -39,6 +39,17 @@ class CandidateFinding:
     snippet: str
     confidence: str  # high | medium | low
     source_scanner: str  # "static" | "secrets"
+    # C-3: set by incremental scan logic. "rescanned" = analysed fresh this run;
+    # "carried_forward" = pulled from a previous scan's cache unchanged.
+    # Defaults to "rescanned" so all existing callers need no changes.
+    scan_mode: str = "rescanned"
+    # C-4: set by incremental scan logic when the finding was already patched and
+    # verified (loop_status=="ACCEPTED") in the previous run's cache. When True,
+    # run_patch_verify_loop skips REASON/EXPLOIT entirely and synthesises a result
+    # from the cached data — this is the actual LLM-call-saving payoff of C-4.
+    already_resolved: bool = False
+    # The patch_diff from the previous run (only meaningful when already_resolved=True).
+    cached_patch_diff: Optional[str] = None
 
     def to_dict(self):
         return asdict(self)

@@ -81,7 +81,25 @@ def cli():
         "after patching to prove the fix."
     ),
 )
-def scan(repo_path, output, artifacts, verbose, fmt, engine, offline, dynamic):
+@click.option(
+    "--apply",
+    "auto_apply",
+    is_flag=True,
+    help=(
+        "Automatically apply all verified patches directly in-place to the "
+        "target repository files upon successful scan verification."
+    ),
+)
+@click.option(
+    "--incremental",
+    is_flag=True,
+    help=(
+        "Enable incremental scanning (Track C). Compares git history against "
+        "the previous scan baseline to only re-scan files that changed and skip "
+        "re-reasoning on previously resolved findings."
+    ),
+)
+def scan(repo_path, output, artifacts, verbose, fmt, engine, offline, dynamic, incremental, auto_apply=False):
     """Scan a local repository or git URL for security vulnerabilities.
 
     REPO_PATH accepts either a local directory path or a git URL
@@ -140,6 +158,7 @@ def scan(repo_path, output, artifacts, verbose, fmt, engine, offline, dynamic):
                 on_route=on_route,
                 offline=offline,
                 dynamic=dynamic,
+                incremental=incremental,
             )
         except Exception as exc:
             console.print(f"\n[bold red]Pipeline failed:[/bold red] {exc}")
@@ -158,6 +177,8 @@ def scan(repo_path, output, artifacts, verbose, fmt, engine, offline, dynamic):
         f"{result.escalated_count} escalated for human review, "
         f"in {result.duration_seconds:.1f}s"
     )
+    if result.incremental_summary:
+        console.print(f"[*] Incremental scan: {result.incremental_summary}")
     if result.fallbacks:
         console.print(
             f"[bold yellow][!] DEGRADED RUN:[/bold yellow] {len(result.fallbacks)} "
@@ -182,6 +203,86 @@ def scan(repo_path, output, artifacts, verbose, fmt, engine, offline, dynamic):
         write_export(md_path, fmt, target_path)
         console.print(f"[*] Markdown report (checksummed): [bold]{md_path}[/bold]")
     console.print(f"[*] Report written to [bold]{target_path}[/bold]\n")
+
+
+
+    if auto_apply:
+        import json
+        from pathlib import Path
+        from analyst.reasoning.patch_loop import apply_patch_to_text
+        target_dir = Path(repo_path)
+        if not target_dir.exists() or not target_dir.is_dir():
+            console.print(f"[bold yellow][!] --apply skipped:[/bold yellow] '{repo_path}' is a remote git URL. Clone locally first to apply.")
+        else:
+            art_dir = Path(artifacts) if artifacts else Path("artifacts")
+            cf_path = art_dir / "confirmed_findings.json"
+            if cf_path.exists():
+                try:
+                    findings_list = json.loads(cf_path.read_text(encoding="utf-8"))
+                    applied_count = 0
+                    for f in findings_list:
+                        diff = f.get("patch_diff")
+                        rel_file = f.get("file")
+                        if diff and rel_file:
+                            fpath = target_dir / rel_file
+                            if fpath.exists():
+                                orig = fpath.read_text(encoding="utf-8")
+                                try:
+                                    patched = apply_patch_to_text(orig, diff)
+                                    bak = fpath.with_suffix(fpath.suffix + ".orig")
+                                    if not bak.exists():
+                                        bak.write_text(orig, encoding="utf-8")
+                                    fpath.write_text(patched, encoding="utf-8")
+                                    applied_count += 1
+                                    console.print(f"  [bold green][APPLIED][/bold green] Patched {rel_file} ({f.get('rule_id')})")
+                                except Exception as e:
+                                    console.print(f"  [yellow][SKIP][/yellow] {rel_file}: {e}")
+                    console.print(f"[bold green][*] Successfully auto-applied {applied_count} verified patch(es) to {repo_path}[/bold green]\n")
+                except Exception as exc:
+                    console.print(f"[bold red][!] Error during auto-apply:[/bold red] {exc}")
+
+
+@cli.command()
+@click.argument("repo_path")
+@click.option("--artifacts", default="artifacts", help="Directory containing confirmed_findings.json")
+def apply(repo_path, artifacts):
+    """Apply verified patches from scan artifacts directly to target repo."""
+    import json
+    from pathlib import Path
+    from analyst.reasoning.patch_loop import apply_patch_to_text
+    target_dir = Path(repo_path)
+    if not target_dir.exists() or not target_dir.is_dir():
+        console.print(f"[bold red][!] Error:[/bold red] '{repo_path}' is not an accessible local directory.")
+        sys.exit(1)
+    
+    art_path = Path(artifacts) / "confirmed_findings.json"
+    if not art_path.exists():
+        console.print(f"[bold red][!] Error:[/bold red] Artifact findings file not found at {art_path}")
+        sys.exit(1)
+
+    findings_list = json.loads(art_path.read_text(encoding="utf-8"))
+    applied = 0
+    for f in findings_list:
+        diff = f.get("patch_diff")
+        rel_file = f.get("file")
+        if diff and rel_file:
+            fpath = target_dir / rel_file
+            if fpath.exists():
+                orig = fpath.read_text(encoding="utf-8")
+                try:
+                    patched = apply_patch_to_text(orig, diff)
+                    bak = fpath.with_suffix(fpath.suffix + ".orig")
+                    if not bak.exists():
+                        bak.write_text(orig, encoding="utf-8")
+                    fpath.write_text(patched, encoding="utf-8")
+                    applied += 1
+                    console.print(f"  [bold green][APPLIED][/bold green] Patched {rel_file} ({f.get('rule_id')})")
+                except Exception as e:
+                    console.print(f"  [bold yellow][FAILED][/bold yellow] {rel_file}: {e}")
+            else:
+                console.print(f"  [bold yellow][MISSING][/bold yellow] {rel_file} does not exist.")
+
+    console.print(f"\n[bold green][*] Finished. Applied {applied} patch(es) to {repo_path}.[/bold green]\n")
 
 
 if __name__ == "__main__":

@@ -59,6 +59,11 @@ from analyst.detection import agent as detection_agent
 from analyst.detection.agent import run_detection_agent
 from analyst.ingestion.agent import run_ingestion_agent
 from analyst.ingestion.repo_fetcher import RepoFetchError, fetch_target
+from analyst.ingestion.scan_cache import (
+    FULL_SCAN,
+    get_changed_files,
+    load_cache,
+)
 from analyst.protocol import (
     CAP_PATCH_REASONING,
     CAP_FINDING_TRIAGE,
@@ -83,9 +88,12 @@ from analyst.protocol import (
 from analyst.reasoning import patch_loop as reasoning_agent
 from analyst.triage import agent as triage_agent
 from analyst.exploitation import agent as exploitation_agent
-from analyst.common.types import HUMAN_ATTENTION_STATUSES
+from analyst.common.types import HUMAN_ATTENTION_STATUSES, CandidateFinding
 from analyst.reasoning.patch_loop import run_patch_verify_loop
 from analyst.reporting.agent import run_reporting_agent
+
+import logging as _logging
+_log = _logging.getLogger(__name__)
 
 
 @dataclass
@@ -105,6 +113,8 @@ class PipelineResult:
     fallbacks: list = field(default_factory=list)
     manual_review_count: int = 0
     protocol_messages: list = field(default_factory=list)  # list[AgentMessage]
+    # --- added by C-3: incremental scan summary ---
+    incremental_summary: Optional[str] = None  # e.g. "2 re-scanned, 14 carried forward"
 
 
 # ---------------------------------------------------------------------------
@@ -181,6 +191,157 @@ def _handoff(
 
 
 # ---------------------------------------------------------------------------
+# Incremental scan helper (C-3)
+# ---------------------------------------------------------------------------
+def _apply_incremental_filter(
+    repo_path: str,
+    candidates: list,
+) -> tuple[list, Optional[str]]:
+    """Filter *candidates* using the scan cache so that REASON only processes
+    findings from files that actually changed since the last run.
+
+    Returns
+    -------
+    (merged_candidates, summary_string)
+        merged_candidates: the list to pass to REASON (carried-forward +
+            freshly-scanned, with scan_mode set on each).
+        summary_string: a one-line human-readable description of what happened,
+            or None if the incremental filter could not be applied (the caller
+            should treat this as a transparent full scan).
+
+    Fail-safe contract:
+        This function NEVER raises. On any error or missing prerequisite it
+        returns (candidates, None), which the caller interprets as "could not
+        apply incremental filter — use all candidates as-is (full scan)."
+    """
+    try:
+        cache = load_cache(repo_path)
+        if cache is None:
+            _log.info(
+                "Incremental mode: no usable cache for %s — doing a full scan.", repo_path
+            )
+            return candidates, None
+
+        last_commit = cache.get("last_commit")
+        changed = get_changed_files(repo_path, last_commit)
+        if changed is FULL_SCAN:
+            _log.info(
+                "Incremental mode: could not determine changed files (commit=%s) — "
+                "doing a full scan.",
+                last_commit,
+            )
+            return candidates, None
+
+        # Files to re-scan = added + modified.  Deleted files' findings are dropped.
+        changed_paths = changed.changed          # frozenset: added | modified
+        deleted_paths = changed.deleted          # frozenset
+
+        # Build the carried-forward pool from the cache.
+        # Key: relative file path -> list of raw finding dicts from the previous run.
+        cached_findings_by_file: dict = cache.get("findings_by_file", {})
+
+        # Reconstruct CandidateFinding objects from cached dicts, tagged as carried forward.
+        carried: list[CandidateFinding] = []
+        for rel_path, raw_findings in cached_findings_by_file.items():
+            if rel_path in deleted_paths:
+                # File no longer exists — drop its findings entirely.
+                continue
+            if rel_path in changed_paths:
+                # File changed — fresh scan results take priority; skip cache for this file.
+                continue
+            for fd in raw_findings:
+                if not isinstance(fd, dict):
+                    continue
+                try:
+                    is_resolved = fd.get("loop_status") == "ACCEPTED"
+                    carried.append(
+                        CandidateFinding(
+                            rule_id=fd.get("rule_id", ""),
+                            vuln_class=fd.get("vuln_class", ""),
+                            file=fd.get("file", rel_path),
+                            line=fd.get("line", 0),
+                            snippet=fd.get("snippet", ""),
+                            confidence=fd.get("confidence", "low"),
+                            source_scanner=fd.get("source_scanner", "static"),
+                            scan_mode="carried_forward",
+                            already_resolved=is_resolved,
+                            cached_patch_diff=(
+                                fd.get("patch_diff") or fd.get("cached_patch_diff")
+                                if is_resolved
+                                else None
+                            ),
+                        )
+                    )
+                except Exception:  # noqa: BLE001
+                    pass  # malformed cached finding — skip it silently
+
+        # Fresh candidates: only those from files that changed.
+        # Unchanged files' fresh findings (from this run's full detection pass)
+        # are discarded in favour of the cached versions above.
+        fresh: list[CandidateFinding] = []
+        for c in candidates:
+            if c.file in changed_paths or c.file not in cached_findings_by_file:
+                # Either the file changed (must re-scan) or it was never cached
+                # (new file not yet in cache) — either way, use the fresh result.
+                c.scan_mode = "rescanned"
+                fresh.append(c)
+            # Files NOT in changed_paths and already in the cache are carried
+            # forward above; we intentionally skip them here.
+
+        merged = fresh + carried
+
+        n_rescanned = len({c.file for c in fresh})
+        n_carried = len({c.file for c in carried})
+        commit_short = (last_commit or "unknown")[:8]
+        summary = (
+            f"{n_rescanned} file(s) re-scanned, "
+            f"{n_carried} carried forward from previous run (commit {commit_short})."
+        )
+        _log.info("Incremental scan: %s", summary)
+        return merged, summary
+
+    except Exception as exc:  # noqa: BLE001
+        _log.warning(
+            "_apply_incremental_filter: unexpected error (%s: %s) — "
+            "falling back to full scan.",
+            type(exc).__name__, exc,
+        )
+        return candidates, None
+
+
+# ---------------------------------------------------------------------------
+# Incremental cache write-back helper (C-5)
+# ---------------------------------------------------------------------------
+def _write_scan_cache(
+    repo_path: str,
+    verify_results: list,
+    scanned_files: Optional[list[str]] = None,
+) -> None:
+    """Fail-safe scan cache persistence at the end of a scan."""
+    try:
+        from analyst.ingestion.scan_cache import get_head_commit, save_cache
+        last_commit = get_head_commit(repo_path)
+        findings_by_file: dict[str, list[dict]] = {}
+        if scanned_files:
+            for f in scanned_files:
+                findings_by_file[f] = []
+        for r in verify_results:
+            rel_path = getattr(getattr(r, "finding", None), "file", None)
+            if rel_path:
+                findings_by_file.setdefault(rel_path, []).append(r.to_dict())
+        save_cache(repo_path, last_commit, findings_by_file)
+        _log.info(
+            "Scan cache saved for %s (commit=%s, %d files)",
+            repo_path, (last_commit or "dirty")[:8], len(findings_by_file),
+        )
+    except Exception as exc:  # noqa: BLE001
+        _log.warning(
+            "Failed to save scan cache for %s (%s: %s) — proceeding.",
+            repo_path, type(exc).__name__, exc,
+        )
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 def run_pipeline(
@@ -195,6 +356,7 @@ def run_pipeline(
     run_id: Optional[str] = None,
     offline: bool = False,
     dynamic: bool = False,
+    incremental: bool = False,
 ) -> PipelineResult:
     """
     Run the full pipeline. `repo_path` accepts either a local directory path OR
@@ -228,6 +390,7 @@ def run_pipeline(
                 run_id=run_id,
                 offline=offline,
                 dynamic=dynamic,
+                incremental=incremental,
             )
     except RepoFetchError as exc:
         # Fetch failures (bad URL, missing git, clone timeout, nonexistent local
@@ -271,11 +434,13 @@ def _run_pipeline_on_local_path(
     run_id: Optional[str] = None,
     offline: bool = False,
     dynamic: bool = False,
+    incremental: bool = False,
 ) -> PipelineResult:
     repo_path = local_path
     start_time = time.time()
     stage_errors: dict = {}
     fallbacks: list = []
+    incremental_summary: Optional[str] = None
 
     # --- one salt, one audit chain, one bus for the whole run ---
     ctx = SaltContext.generate(run_id=run_id)
@@ -315,6 +480,8 @@ def _run_pipeline_on_local_path(
                 recoverable=outcome.trigger == "RECOVERED",
             ),
         )
+
+    scanned_files_list: list[str] = []
 
     def finish(
         status: str,
@@ -358,6 +525,10 @@ def _run_pipeline_on_local_path(
             audit.write(artifact_path / "audit_log.json")
             integrity["audit_log_file"] = str(artifact_path / "audit_log.json")
 
+        # C-5: Persist scan cache write-back (fail-safe)
+        if status in ("OK", "PARTIAL") and scanned_files_list:
+            _write_scan_cache(repo_path, verify_results, scanned_files=scanned_files_list)
+
         manual = sum(1 for r in verify_results if r.loop_status in HUMAN_ATTENTION_STATUSES)
 
         return PipelineResult(
@@ -375,12 +546,18 @@ def _run_pipeline_on_local_path(
             fallbacks=fallbacks,
             manual_review_count=manual,
             protocol_messages=list(bus.transcript),
+            incremental_summary=incremental_summary,
         )
 
     def early_exit(status: str, error_key: Optional[str] = None, error_val: Optional[str] = None):
         from analyst.reporting.renderer import render_report
 
-        report_text_local = render_report([], source, time.time() - start_time)
+        report_text_local = render_report(
+            [],
+            source,
+            time.time() - start_time,
+            incremental_summary=incremental_summary,
+        )
         Path(output_path).write_text(report_text_local, encoding="utf-8")
         if error_key:
             stage_errors[error_key] = error_val
@@ -390,6 +567,8 @@ def _run_pipeline_on_local_path(
     if on_stage_start:
         on_stage_start("INGEST")
     ing = run_ingestion_agent(repo_path, salt_ctx=ctx)
+    if hasattr(ing, "result") and hasattr(ing.result, "sources"):
+        scanned_files_list = list(ing.result.sources.keys())
     if artifact_path:
         (artifact_path / "ingestion_manifest.json").write_text(ing.result.manifest.to_json())
     _decide(
@@ -432,6 +611,24 @@ def _run_pipeline_on_local_path(
     if on_stage_start:
         on_stage_start("DETECT")
     det = run_detection_agent(ing.result)
+
+    # --------------------------------------------------------- INCREMENTAL FILTER
+    # Applied AFTER detection (INGEST and DETECT always run in full — only the
+    # candidates forwarded to REASON are filtered). This keeps the rule engine
+    # simple and avoids threading a file-filter deep into run_detection().
+    if incremental:
+        det.candidates, incremental_summary = _apply_incremental_filter(
+            repo_path, det.candidates
+        )
+        if incremental_summary:
+            audit.append(
+                actor="ORCHESTRATOR",
+                action="INCREMENTAL_FILTER",
+                summary=incremental_summary,
+            )
+            if on_route:
+                on_route(f"ORCHESTRATOR: Incremental scan: {incremental_summary}")
+
     candidate_payload = [c.to_dict() for c in det.candidates]
     if artifact_path:
         (artifact_path / "candidate_findings.json").write_text(
@@ -545,6 +742,8 @@ def _run_pipeline_on_local_path(
             from analyst.protocol import CAP_EXPLOIT_VERIFY, ExploitVerifyRequestPayload, ExploitVerifyResultPayload
 
             for r in accepted:
+                if r.attempts == 0:
+                    continue
                 sandbox_root = _make_sandbox_copy(repo_path)
                 try:
                     if r.finding.patch_diff:
@@ -608,7 +807,14 @@ def _run_pipeline_on_local_path(
         on_stage_start("REPORT")
     confirmed = [r.finding for r in verify_results]
     duration = time.time() - start_time
-    rep = run_reporting_agent(confirmed, source, duration, verify_results=verify_results, triage=priorities)
+    rep = run_reporting_agent(
+        confirmed,
+        source,
+        duration,
+        verify_results=verify_results,
+        triage=priorities,
+        incremental_summary=incremental_summary,
+    )
     Path(output_path).write_text(rep.report_text, encoding="utf-8")
     _decide(
         bus,

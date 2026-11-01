@@ -65,7 +65,12 @@ from analyst.protocol import (
     StateHandoffPayload,
     write_verification_sidecar,
 )
-from analyst.orchestrator.pipeline import PipelineResult, _build_bus
+from analyst.orchestrator.pipeline import (
+    PipelineResult,
+    _apply_incremental_filter,
+    _build_bus,
+    _write_scan_cache,
+)
 from analyst.common.types import HUMAN_ATTENTION_STATUSES
 from analyst.reasoning.patch_loop import run_patch_verify_loop
 from analyst.reporting.agent import run_reporting_agent
@@ -80,6 +85,7 @@ class PipelineState(TypedDict, total=False):
     start_time: float
     offline: bool
     dynamic: bool
+    incremental: bool  # C-3
 
     # --- protocol layer, created once per run ---
     salt_ctx: SaltContext
@@ -96,6 +102,7 @@ class PipelineState(TypedDict, total=False):
     report_action: str
     escalated_count: int
     fallbacks: list
+    incremental_summary: Optional[str]  # C-3
 
     stage_errors: dict
     routing_log: list
@@ -147,7 +154,12 @@ def _handoff(
 def _write_empty_report(state: PipelineState) -> str:
     from analyst.reporting.renderer import render_report
 
-    return render_report([], state["source"], time.time() - state["start_time"])
+    return render_report(
+        [],
+        state["source"],
+        time.time() - state["start_time"],
+        incremental_summary=state.get("incremental_summary"),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -194,6 +206,15 @@ def detect_node(state: PipelineState) -> PipelineState:
     )
 
     det = run_detection_agent(ing.result)
+
+    # ------------------------------------------------- INCREMENTAL FILTER (C-3)
+    if state.get("incremental", False):
+        filtered, summary = _apply_incremental_filter(state["repo_path"], det.candidates)
+        det.candidates = filtered
+        state["incremental_summary"] = summary
+        if summary and state.get("on_route"):
+            state["on_route"](f"ORCHESTRATOR: Incremental scan: {summary}")
+
     candidate_payload = [c.to_dict() for c in det.candidates]
     if state.get("artifact_dir"):
         artifact_path = Path(state["artifact_dir"])
@@ -332,6 +353,8 @@ def reason_node(state: PipelineState) -> PipelineState:
             from analyst.protocol import CAP_EXPLOIT_VERIFY, ExploitVerifyRequestPayload, ExploitVerifyResultPayload
 
             for r in accepted:
+                if r.attempts == 0:
+                    continue
                 sandbox_root = _make_sandbox_copy(state["repo_path"])
                 try:
                     if r.finding.patch_diff:
@@ -403,7 +426,12 @@ def report_node(state: PipelineState) -> PipelineState:
     confirmed = [r.finding for r in verify_results]
     duration = time.time() - state["start_time"]
     rep = run_reporting_agent(
-        confirmed, state["source"], duration, verify_results=verify_results, triage=state.get("triage")
+        confirmed,
+        state["source"],
+        duration,
+        verify_results=verify_results,
+        triage=state.get("triage"),
+        incremental_summary=state.get("incremental_summary"),
     )
     Path(state["output_path"]).write_text(rep.report_text, encoding="utf-8")
     state["report_text"] = rep.report_text
@@ -535,6 +563,7 @@ def run_pipeline_graph(
     run_id: Optional[str] = None,
     offline: bool = False,
     dynamic: bool = False,
+    incremental: bool = False,
 ) -> PipelineResult:
     """Drop-in replacement for pipeline.run_pipeline() — same signature, same
     PipelineResult shape, same fetch_target() wrapping. Internally routes
@@ -556,6 +585,7 @@ def run_pipeline_graph(
                 run_id=run_id,
                 offline=offline,
                 dynamic=dynamic,
+                incremental=incremental,
             )
     except RepoFetchError as exc:
         from analyst.reporting.renderer import render_report
@@ -598,6 +628,7 @@ def _run_graph_on_local_path(
     run_id: Optional[str] = None,
     offline: bool = False,
     dynamic: bool = False,
+    incremental: bool = False,
 ) -> PipelineResult:
     start_time = time.time()
     ctx = SaltContext.generate(run_id=run_id)
@@ -625,6 +656,7 @@ def _run_graph_on_local_path(
         "start_time": start_time,
         "offline": offline,
         "dynamic": dynamic,
+        "incremental": incremental,  # C-3
         "salt_ctx": ctx,
         "bus": bus,
         "audit": audit,
@@ -633,6 +665,7 @@ def _run_graph_on_local_path(
         "messages": [],
         "verify_results": [],
         "fallbacks": [],
+        "incremental_summary": None,  # C-3
         "on_stage_start": on_stage_start,
         "on_stage_done": on_stage_done,
         "on_route": on_route,
@@ -676,6 +709,15 @@ def _run_graph_on_local_path(
         audit.write(Path(artifact_dir) / "audit_log.json")
         integrity["audit_log_file"] = str(Path(artifact_dir) / "audit_log.json")
 
+    # C-5: Persist scan cache write-back (fail-safe)
+    ing_obj = final_state.get("ing")
+    scanned_files = (
+        list(ing_obj.result.sources.keys())
+        if ing_obj and hasattr(ing_obj, "result") and hasattr(ing_obj.result, "sources")
+        else None
+    )
+    _write_scan_cache(local_path, verify_results, scanned_files=scanned_files)
+
     return PipelineResult(
         status="PARTIAL" if stage_errors else "OK",
         report_text=final_state.get("report_text", ""),
@@ -693,4 +735,5 @@ def _run_graph_on_local_path(
             1 for r in verify_results if r.loop_status in HUMAN_ATTENTION_STATUSES
         ),
         protocol_messages=list(bus.transcript),
+        incremental_summary=final_state.get("incremental_summary"),  # C-3
     )

@@ -259,6 +259,61 @@ class JobManager:
                 )
         return fixes
 
+    def apply_fixes(self, job_id: str, target_dir: Optional[str] = None) -> dict:
+        from analyst.reasoning.patch_loop import apply_patch_to_text
+        job = self.get_job(job_id)
+        if not job:
+            return {"success": False, "error": "Job not found"}
+
+        target_path_str = target_dir or job.target_repo
+        target = Path(target_path_str)
+        if not target.exists() or not target.is_dir():
+            return {
+                "success": False,
+                "error": f"Target repository '{target}' is not an accessible local directory. "
+                         "For remote git URLs, clone locally before applying or download the unified diff.",
+            }
+
+        fixes = self.get_fixes(job_id)
+        applied = []
+        failed = []
+
+        for fix in fixes:
+            diff = fix.get("patch_diff")
+            rel_file = fix.get("file")
+            if not diff or not rel_file:
+                continue
+
+            file_path = target / rel_file
+            if not file_path.exists():
+                failed.append({"file": rel_file, "reason": "Target file does not exist on disk"})
+                continue
+
+            try:
+                original = file_path.read_text(encoding="utf-8")
+                patched = apply_patch_to_text(original, diff)
+                bak_path = file_path.with_suffix(file_path.suffix + ".orig")
+                if not bak_path.exists():
+                    bak_path.write_text(original, encoding="utf-8")
+                file_path.write_text(patched, encoding="utf-8")
+                applied.append({
+                    "file": rel_file,
+                    "rule_id": fix.get("rule_id"),
+                    "vuln_class": fix.get("vuln_class"),
+                    "backup": str(bak_path.name),
+                })
+            except Exception as e:
+                failed.append({"file": rel_file, "reason": str(e)})
+
+        return {
+            "success": len(applied) > 0,
+            "target": str(target),
+            "applied_count": len(applied),
+            "failed_count": len(failed),
+            "applied": applied,
+            "failed": failed,
+        }
+
     def get_report(self, job_id: str) -> str:
         job = self.get_job(job_id)
         if not job:

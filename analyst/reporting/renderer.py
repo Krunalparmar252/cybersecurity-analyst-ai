@@ -51,6 +51,7 @@ def render_report(
     scan_duration_seconds: float,
     verify_results: Optional[list] = None,
     triage: Optional[dict] = None,
+    incremental_summary: Optional[str] = None,
 ) -> str:
     confirmed_true = [f for f in confirmed if f.confirmed]
     rejected = [f for f in confirmed if not f.confirmed]
@@ -84,6 +85,8 @@ def render_report(
     # Executive summary
     lines.append("## Executive Summary")
     lines.append("")
+    if incremental_summary:
+        lines.append(f"- **Incremental scan:** {incremental_summary}")
     lines.append(f"- **Confirmed findings:** {len(confirmed_true)}")
     lines.append(f"- **Candidates rejected as false positives:** {len(rejected)}")
     if verify_results:

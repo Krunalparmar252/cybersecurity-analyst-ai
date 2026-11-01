@@ -279,6 +279,39 @@ def _finding_with_retry_context(
     )
 
 
+VerifyLoopResult = PatchVerificationResult  # alias for convenience
+
+
+def _synthesize_resolved_result(finding: CandidateFinding) -> PatchVerificationResult:
+    """Synthesize an ACCEPTED result for a finding already resolved in a prior scan.
+    Skips REASON and EXPLOIT entirely — saving LLM calls and sandbox execution."""
+    confirmed = ConfirmedFinding(
+        rule_id=finding.rule_id,
+        vuln_class=finding.vuln_class,
+        file=finding.file,
+        line=finding.line,
+        confirmed=True,
+        confirmation_reasoning="Previously resolved in earlier scan baseline; carried forward from cache.",
+        explanation="Previously resolved and verified in earlier scan baseline.",
+        patch_diff=getattr(finding, "cached_patch_diff", None),
+        analysis_tier="cached",
+    )
+    return PatchVerificationResult(
+        finding=confirmed,
+        loop_status=STATUS_ACCEPTED,
+        attempts=0,
+        attempt_log=[
+            {
+                "attempt": 0,
+                "applied": True,
+                "rule_still_fires": False,
+                "note": "Skipped: finding was already resolved in previous scan baseline.",
+                "analysis_tier": "cached",
+            }
+        ],
+    )
+
+
 # ---------------------------------------------------------------------------
 # Main agent loop
 # ---------------------------------------------------------------------------
@@ -292,6 +325,9 @@ def verify_and_patch(
     on_fallback: Optional[Callable[[FallbackOutcome], None]] = None,
 ) -> PatchVerificationResult:
     """Run the propose -> act -> observe -> decide loop for one finding."""
+    if getattr(finding, "already_resolved", False):
+        return _synthesize_resolved_result(finding)
+
     attempt_log: list[dict] = []
     validation_ids: list[str] = []
     current_finding = finding
@@ -482,6 +518,16 @@ def run_patch_verify_loop(
 
     results = []
     for finding in findings:
+        if getattr(finding, "already_resolved", False):
+            res = _synthesize_resolved_result(finding)
+            results.append(res)
+            if on_result:
+                try:
+                    on_result(res)
+                except Exception:
+                    pass
+            continue
+
         res = verify_and_patch(
             finding,
             repo_path,

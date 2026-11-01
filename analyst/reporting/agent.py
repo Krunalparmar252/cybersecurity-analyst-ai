@@ -49,6 +49,7 @@ def run_reporting_agent(
     scan_duration_seconds: float,
     verify_results: Optional[list] = None,
     triage: Optional[dict] = None,
+    incremental_summary: Optional[str] = None,
 ) -> ReportingAgentResult:
     """RUN -> OBSERVE -> DECIDE for the reporting stage."""
     # --- RUN (delegates entirely to the existing, unmodified renderer) ---
@@ -56,7 +57,12 @@ def run_reporting_agent(
     # text before it is written, checksummed, or exported.
     report_text = scrub_text(
         render_report(
-            confirmed, repo_path, scan_duration_seconds, verify_results=verify_results, triage=triage
+            confirmed,
+            repo_path,
+            scan_duration_seconds,
+            verify_results=verify_results,
+            triage=triage,
+            incremental_summary=incremental_summary,
         )
     )
 

@@ -41,7 +41,8 @@ DEFAULT_TARGET_REPO_URL = "https://github.com/Krunalparmar252/seeded-vuln-repo"
 
 def _slug_for(target: str) -> str:
     """Derive a filesystem-safe folder name from a repo URL or local path,
-    so different targets get their own output folder instead of
+    so different targets get their own o
+    utput folder instead of
     overwriting each other's report/artifacts."""
     name = target.rstrip("/").split("/")[-1]
     name = re.sub(r"\.git$", "", name)
