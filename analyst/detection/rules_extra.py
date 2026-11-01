@@ -549,3 +549,189 @@ def find_ssrf_001_javascript(tree, source: bytes, rel_path: str) -> list[Candida
                            node.start_point[0] + 1, call_text[:200], "medium"))
     return out
 
+
+
+# ---------------------------------------------------------------------------
+# CMDINJ-002 (JS/TS): child_process.exec/execSync/spawn with tainted input.
+# ---------------------------------------------------------------------------
+_JS_CMD_CALLS = re.compile(r"(^|\.)(exec|execSync|spawn|spawnSync)$")
+
+
+def find_cmdinj_002(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
+    out = []
+    for node in _walk(tree.root_node):
+        if node.type != "call_expression":
+            continue
+        fn = node.child_by_field_name("function")
+        args = node.child_by_field_name("arguments")
+        if fn is None or args is None:
+            continue
+        fn_text = _text(source, fn)
+        if not _JS_CMD_CALLS.search(fn_text):
+            continue
+        named = args.named_children
+        if not named:
+            continue
+        first = named[0]
+        first_text = _text(source, first)
+        call_text = _text(source, node)
+
+        if "spawn" in fn_text:
+            if not re.search(r"shell\s*:\s*true", call_text, re.IGNORECASE):
+                continue
+
+        # Constant literal string without substitution -> safe
+        if first.type == "string" or (first.type == "template_string" and not any(
+                c.type == "template_substitution" for c in first.children)):
+            continue
+
+        is_tainted = False
+        if first.type == "template_string" and any(c.type == "template_substitution" for c in first.children):
+            is_tainted = True
+        elif first.type == "binary_expression" and "+" in first_text:
+            is_tainted = True
+        elif first.type == "identifier":
+            is_tainted = True
+
+        if is_tainted:
+            out.append(_mk("CMDINJ-002", "Command Injection", rel_path,
+                           node.start_point[0] + 1, call_text[:200], "high"))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# PATHTRAV-002 (JS/TS): fs.readFile/writeFile/res.sendFile with tainted input.
+# ---------------------------------------------------------------------------
+_JS_FS_PATH_CALLS = re.compile(r"(^|\.)(readFile|readFileSync|createReadStream|writeFile|writeFileSync|sendFile|download)$")
+
+
+def find_pathtrav_002(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
+    out = []
+    for node in _walk(tree.root_node):
+        if node.type != "call_expression":
+            continue
+        fn = node.child_by_field_name("function")
+        args = node.child_by_field_name("arguments")
+        if fn is None or args is None:
+            continue
+        fn_text = _text(source, fn)
+        if not _JS_FS_PATH_CALLS.search(fn_text):
+            continue
+        named = args.named_children
+        if not named:
+            continue
+        first = named[0]
+        first_text = _text(source, first)
+        call_text = _text(source, node)
+
+        # Constant literal string -> safe
+        if first.type == "string" or (first.type == "template_string" and not any(
+                c.type == "template_substitution" for c in first.children)):
+            continue
+
+        scope = node.parent
+        while scope is not None and scope.type not in ("function_declaration", "arrow_function", "function_expression"):
+            scope = scope.parent
+        scope_text = _text(source, scope) if scope else _text(source, tree.root_node)
+        if "startsWith" in scope_text or "indexOf" in scope_text:
+            continue
+
+        is_tainted = False
+        if first.type == "template_string" and any(c.type == "template_substitution" for c in first.children):
+            is_tainted = True
+        elif first.type == "binary_expression" and "+" in first_text:
+            is_tainted = True
+        elif first.type == "call_expression" and ("path.join" in first_text or "path.resolve" in first_text):
+            if any(c.type == "identifier" or c.type == "template_string" for c in first.children):
+                is_tainted = True
+        elif first.type == "identifier":
+            is_tainted = True
+
+        if is_tainted:
+            out.append(_mk("PATHTRAV-002", "Path Traversal", rel_path,
+                           node.start_point[0] + 1, call_text[:200], "high"))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# DESER-003 (JS/TS): node-serialize, unsafe yaml.load, vm.runInContext.
+# ---------------------------------------------------------------------------
+_DESER_JS_CALLS = re.compile(r"(unserialize|yaml\.(load|unsafeLoad)|jsyaml\.(load|unsafeLoad)|vm\.(runInContext|runInNewContext|runInThisContext|Script))")
+
+
+def find_deser_003(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
+    out = []
+    for node in _walk(tree.root_node):
+        if node.type not in ("call_expression", "new_expression"):
+            continue
+        fn = node.child_by_field_name("function") or node.child_by_field_name("constructor")
+        args = node.child_by_field_name("arguments")
+        if fn is None or args is None:
+            continue
+        fn_text = _text(source, fn)
+        if not _DESER_JS_CALLS.search(fn_text):
+            continue
+        call_text = _text(source, node)
+
+        if "load" in fn_text and "unsafeLoad" not in fn_text:
+            if any(s in call_text for s in ("FAILSAFE_SCHEMA", "CORE_SCHEMA", "DEFAULT_SCHEMA", "schema:")):
+                continue
+
+        if "vm." in fn_text or fn_text == "Script":
+            named = args.named_children
+            if named and (named[0].type == "string" or (named[0].type == "template_string" and not any(
+                    c.type == "template_substitution" for c in named[0].children))):
+                continue
+
+        out.append(_mk("DESER-003", "Unsafe Deserialization", rel_path,
+                       node.start_point[0] + 1, call_text[:200], "high"))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# AUTH-005 (JS/TS): password compared with == / === instead of hash compare.
+# ---------------------------------------------------------------------------
+def find_auth_005(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
+    out = []
+    for node in _walk(tree.root_node):
+        if node.type != "binary_expression":
+            continue
+        op = node.child_by_field_name("operator")
+        if op is None or _text(source, op) not in ("==", "===", "!=", "!=="):
+            continue
+        text = _text(source, node)
+        if not _PW_NAME.search(text):
+            continue
+        if _HASH_VERIFY.search(text):
+            continue
+        out.append(_mk("AUTH-005", "Broken Authentication", rel_path,
+                       node.start_point[0] + 1, text, "high"))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# AUTH-006 (JS/TS): crypto.createHash('md5'|'sha1') applied to password.
+# ---------------------------------------------------------------------------
+def find_auth_006(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
+    out = []
+    for node in _walk(tree.root_node):
+        if node.type != "call_expression":
+            continue
+        fn = node.child_by_field_name("function")
+        args = node.child_by_field_name("arguments")
+        if fn is None or args is None:
+            continue
+        fn_text = _text(source, fn)
+        if not (fn_text.endswith("createHash") or fn_text == "createHash"):
+            continue
+        call_text = _text(source, node)
+        if not re.search(r"createHash\s*\(\s*['\"](md5|sha1)['\"]\s*\)", call_text, re.IGNORECASE):
+            continue
+        stmt = node.parent
+        while stmt is not None and stmt.type not in ("expression_statement", "variable_declaration", "lexical_declaration", "return_statement"):
+            stmt = stmt.parent
+        stmt_text = _text(source, stmt) if stmt else call_text
+        if _PW_NAME.search(stmt_text):
+            out.append(_mk("AUTH-006", "Broken Authentication", rel_path,
+                           node.start_point[0] + 1, stmt_text[:200], "high"))
+    return out

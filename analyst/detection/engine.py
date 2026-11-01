@@ -476,6 +476,8 @@ _AST_RULES_BY_LANGUAGE = {
     "javascript": (
         _find_sqli_javascript, _find_xss_javascript,
         rules_extra.find_xss_001, rules_extra.find_deser_002,
+        rules_extra.find_cmdinj_002, rules_extra.find_pathtrav_002,
+        rules_extra.find_deser_003, rules_extra.find_auth_005, rules_extra.find_auth_006,
         rules_extra.find_auth_003_javascript, rules_extra.find_auth_004_javascript,
         rules_extra.find_ssrf_001_javascript,
     ),
@@ -488,6 +490,8 @@ _AST_RULES_BY_LANGUAGE = {
     "typescript": (
         _find_sqli_javascript, _find_xss_javascript,
         rules_extra.find_xss_001, rules_extra.find_deser_002,
+        rules_extra.find_cmdinj_002, rules_extra.find_pathtrav_002,
+        rules_extra.find_deser_003, rules_extra.find_auth_005, rules_extra.find_auth_006,
         rules_extra.find_auth_003_javascript, rules_extra.find_auth_004_javascript,
         rules_extra.find_ssrf_001_javascript,
     ),

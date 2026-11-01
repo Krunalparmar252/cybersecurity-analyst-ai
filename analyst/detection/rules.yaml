@@ -29,5 +29,10 @@ rules:
   - {id: SSRF-001, class: Server-Side Request Forgery, match: ast, languages: [python, javascript, typescript], module: rules_extra, note: "HTTP client call with user-controlled URL without allowlist validation"}
   - {id: SECRET-004, class: Hardcoded Secrets, match: regex, languages: [any-ingested], module: rules_extra, redacted: true, note: "Hardcoded JWT literal"}
   - {id: SECRET-008, class: Hardcoded Secrets, match: file-pattern, languages: [any-ingested], module: rules_extra, note: ".env file present and tracked in git"}
+  - {id: CMDINJ-002, class: Command Injection, match: ast, languages: [javascript, typescript], module: rules_extra, note: "child_process.exec/execSync/spawn with tainted input"}
+  - {id: PATHTRAV-002, class: Path Traversal, match: ast, languages: [javascript, typescript], module: rules_extra, note: "fs.readFile/writeFile/res.sendFile with tainted input without path check"}
+  - {id: DESER-003, class: Unsafe Deserialization, match: ast, languages: [javascript, typescript], module: rules_extra, note: "node-serialize unserialize, unsafe yaml.load, vm.runInContext"}
+  - {id: AUTH-005, class: Broken Authentication, match: ast, languages: [javascript, typescript], module: rules_extra, note: "password compared with ==/=== instead of bcrypt/argon2 compare"}
+  - {id: AUTH-006, class: Broken Authentication, match: ast, languages: [javascript, typescript], module: rules_extra, note: "crypto.createHash('md5'|'sha1') applied to password value"}
 # Specified in rules.md but NOT implemented (listed so the gap is explicit).
 not_implemented: []
