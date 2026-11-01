@@ -112,7 +112,7 @@ export default function FindingDetailPage() {
       {/* Primary Header */}
       <div>
         <div className="font-mono text-xs text-signal tracking-widest uppercase mb-1">
-          {finding.id} // {finding.cwe}
+          {finding.id} {'//'} {finding.cwe}
         </div>
         <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text-primary">
           {finding.ruleTitle}

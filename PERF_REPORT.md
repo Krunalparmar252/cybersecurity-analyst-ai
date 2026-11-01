@@ -13,7 +13,7 @@ All optimizations preserved visual design parity, brand aesthetics, and GSAP/Len
 | Route (App Router) | Baseline Page Size | Optimized Page Size | Baseline First Load JS | Optimized First Load JS | Net First Load JS Reduction |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **`/`** (Landing) | 11.4 kB | **3.34 kB** | 182 kB | **146 kB** | **-36 kB (-19.8%)** |
-| **`/dashboard`** (Security Cockpit) | 3.8 kB | **3.74 kB** | 188 kB | **161 kB** | **-27 kB (-14.4%)** |
+| **`/dashboard`** (Security Cockpit) | 3.8 kB | **3.74 kB** | **188 kB** | **161 kB** | **-27 kB (-14.4%)** |
 | **`/findings`** (Vulnerability Workbench) | 3.21 kB | **3.21 kB** | 104 kB | **105 kB** | Stable (optimized CLS) |
 | **`/findings/[id]`** (Finding Detail & Diff) | 3.4 kB | **3.33 kB** | 188 kB | **160 kB** | **-28 kB (-14.9%)** |
 | **`/scan/new`** (Ingestion Configuration) | 5.42 kB | **6.06 kB** | 107 kB | **108 kB** | +Strict Validation |

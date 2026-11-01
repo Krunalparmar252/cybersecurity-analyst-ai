@@ -79,3 +79,4 @@ The application demonstrates robust defense-in-depth:
 - Strict CSP and frame-ancestors block XSS and clickjacking.
 - Secret isolation ensures API keys remain exclusively on the server.
 - Container boundaries and Git workflows prevent accidental credential leakage.
+
