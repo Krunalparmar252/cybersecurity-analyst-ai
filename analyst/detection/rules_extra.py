@@ -705,7 +705,25 @@ def find_auth_005(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
         if op is None or _text(source, op) not in ("==", "===", "!=", "!=="):
             continue
         text = _text(source, node)
-        if not _PW_NAME.search(text):
+        
+        # Check if operand text has password, or if enclosing function has password in name
+        is_pw = bool(_PW_NAME.search(text))
+        if not is_pw:
+            curr = node.parent
+            while curr is not None:
+                if curr.type in ("function_declaration", "method_definition", "arrow_function", "function"):
+                    name_n = curr.child_by_field_name("name")
+                    if name_n and _PW_NAME.search(_text(source, name_n)):
+                        is_pw = True
+                        break
+                    if curr.parent and curr.parent.type == "variable_declarator":
+                        v_name = curr.parent.child_by_field_name("name")
+                        if v_name and _PW_NAME.search(_text(source, v_name)):
+                            is_pw = True
+                            break
+                curr = curr.parent
+
+        if not is_pw:
             continue
         if _HASH_VERIFY.search(text):
             continue
@@ -1112,7 +1130,7 @@ def find_config_002_javascript(tree, source: bytes, rel_path: str) -> list[Candi
 # ---------------------------------------------------------------------------
 # XXE-001 (Python & JS/TS): Unsafe XML parsing with entity expansion.
 # ---------------------------------------------------------------------------
-_XML_UNSAFE_CALLS = re.compile(r"\b((lxml\.)?(etree|ElementTree|ET|minidom|sax)\.(parse|fromstring|parseString))\b")
+_XML_UNSAFE_CALLS = re.compile(r"\b((lxml\.)?(etree|ElementTree|ET|minidom|sax|pulldom)\.(parse|fromstring|parseString)|parseString|fromstring)\b")
 
 
 def find_xxe_001_python(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:

@@ -47,6 +47,40 @@ def _looks_tainted_expr(text: str) -> bool:
     )
 
 
+def _py_find_function_ancestor(node):
+    current = node.parent
+    while current is not None and current.type != "function_definition":
+        current = current.parent
+    return current
+
+
+def _py_variable_is_tainted_in_scope(var_name: str, call_node, source: bytes) -> Optional[tuple[str, int]]:
+    scope = _py_find_function_ancestor(call_node)
+    if scope is None:
+        return None
+
+    def node_text(n) -> str:
+        return source[n.start_byte : n.end_byte].decode("utf-8", errors="replace")
+
+    result = None
+
+    def walk_scope(node):
+        nonlocal result
+        if node.type == "assignment":
+            left = node.child_by_field_name("left")
+            right = node.child_by_field_name("right")
+            if left is not None and right is not None:
+                if node_text(left) == var_name:
+                    right_text = node_text(right)
+                    if _looks_tainted_expr(right_text):
+                        result = (f"{var_name} = {right_text}", node.start_point[0] + 1)
+        for child in node.children:
+            walk_scope(child)
+
+    walk_scope(scope)
+    return result
+
+
 def _find_sqli_python(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
     findings: list[CandidateFinding] = []
 
@@ -54,39 +88,10 @@ def _find_sqli_python(tree, source: bytes, rel_path: str) -> list[CandidateFindi
         return source[node.start_byte : node.end_byte].decode("utf-8", errors="replace")
 
     def find_function_ancestor(node):
-        """Walk up to the nearest enclosing function_definition, so we only
-        resolve variables within the same function scope (avoids false
-        cross-function matches)."""
-        current = node.parent
-        while current is not None and current.type != "function_definition":
-            current = current.parent
-        return current
+        return _py_find_function_ancestor(node)
 
     def variable_is_tainted_in_scope(var_name: str, call_node) -> Optional[tuple[str, int]]:
-        """Look for `var_name = <expr>` assignments earlier in the same
-        function body and check if the assigned expression looks tainted.
-        Returns (matched_text, line_number) if found, else None."""
-        scope = find_function_ancestor(call_node)
-        if scope is None:
-            return None
-
-        result = None
-
-        def walk_scope(node):
-            nonlocal result
-            if node.type == "assignment":
-                left = node.child_by_field_name("left")
-                right = node.child_by_field_name("right")
-                if left is not None and right is not None:
-                    if node_text(left) == var_name:
-                        right_text = node_text(right)
-                        if _looks_tainted_expr(right_text):
-                            result = (f"{var_name} = {right_text}", node.start_point[0] + 1)
-            for child in node.children:
-                walk_scope(child)
-
-        walk_scope(scope)
-        return result
+        return _py_variable_is_tainted_in_scope(var_name, call_node, source)
 
     def walk(node):
         if node.type == "call":
@@ -203,7 +208,15 @@ def _find_more_vulnerabilities_python(tree, source: bytes, rel_path: str) -> lis
 
                 # CMDINJ-001
                 if called_name in _CMD_EXEC_CALLS or ("subprocess" in func_text and ("shell=True" in matched_snippet or "system" in func_text)):
-                    if _looks_tainted_expr(matched_snippet):
+                    is_cmd_tainted = _looks_tainted_expr(matched_snippet)
+                    if not is_cmd_tainted:
+                        args_node = node.child_by_field_name("arguments")
+                        if args_node and args_node.named_children:
+                            first_arg = args_node.named_children[0]
+                            arg_name = node_text(first_arg)
+                            if _py_variable_is_tainted_in_scope(arg_name, node, source):
+                                is_cmd_tainted = True
+                    if is_cmd_tainted:
                         findings.append(
                             CandidateFinding(
                                 rule_id="CMDINJ-001",
