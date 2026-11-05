@@ -401,6 +401,8 @@ def find_auth_004(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
         if _text(source, fn).rsplit(".", 1)[-1] != "set_cookie":
             continue
         call_text = _text(source, node)
+        if not re.search(r"['\"](session|auth|sid|token|login|jwt|user_id)['\"]", call_text, re.IGNORECASE):
+            continue
         has_httponly = bool(re.search(r"httponly\s*=\s*True", call_text, re.IGNORECASE))
         has_secure = bool(re.search(r"secure\s*=\s*True", call_text, re.IGNORECASE))
         if not (has_httponly and has_secure):
@@ -422,6 +424,8 @@ def find_auth_004_javascript(tree, source: bytes, rel_path: str) -> list[Candida
         if not (fn_text.endswith(".cookie") or fn_text.endswith(".setCookie") or fn_text.endswith(".set_cookie")):
             continue
         call_text = _text(source, node)
+        if not re.search(r"['\"](session|auth|sid|token|login|jwt|user_id)['\"]", call_text, re.IGNORECASE):
+            continue
         has_httponly = bool(re.search(r"httpOnly\s*:\s*true", call_text, re.IGNORECASE))
         has_secure = bool(re.search(r"secure\s*:\s*true", call_text, re.IGNORECASE))
         if not (has_httponly and has_secure):
@@ -811,16 +815,21 @@ def find_redir_001_javascript(tree, source: bytes, rel_path: str) -> list[Candid
 # ---------------------------------------------------------------------------
 # TLS-001 (Python & JS/TS): Certificate verification disabled.
 # ---------------------------------------------------------------------------
+_HTTP_CLIENT_CALLS = re.compile(r"\b(requests\.(get|post|put|delete|patch|head|request)|httpx\.(get|post|put|delete|patch|head|request|Client|AsyncClient)|urllib\.request\.urlopen|aiohttp\.(request|ClientSession)|Session)\b")
+
+
 def find_tls_001_python(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
     out = []
     for node in _walk(tree.root_node):
         if node.type != "call":
             continue
+        fn = node.child_by_field_name("function")
+        fn_text = _text(source, fn) if fn else ""
         call_text = _text(source, node)
-        # Check verify=False or verify=0 in requests/httpx calls
-        if re.search(r"\bverify\s*=\s*(False|0)\b", call_text):
-            out.append(_mk("TLS-001", "Insecure TLS Configuration", rel_path, node.start_point[0] + 1, call_text[:200], "high"))
-        elif "_create_unverified_context" in call_text:
+        if _HTTP_CLIENT_CALLS.search(fn_text) or _HTTP_CLIENT_CALLS.search(call_text):
+            if re.search(r"\bverify\s*=\s*(False|0)\b", call_text):
+                out.append(_mk("TLS-001", "Insecure TLS Configuration", rel_path, node.start_point[0] + 1, call_text[:200], "high"))
+        elif "_create_unverified_context" in fn_text or "_create_unverified_context" in call_text:
             out.append(_mk("TLS-001", "Insecure TLS Configuration", rel_path, node.start_point[0] + 1, call_text[:200], "high"))
     return out
 
@@ -856,10 +865,12 @@ def find_cors_001_javascript(tree, source: bytes, rel_path: str) -> list[Candida
     out = []
     for node in _walk(tree.root_node):
         if node.type == "call_expression":
+            fn = node.child_by_field_name("function")
+            if not fn or _text(source, fn) != "cors":
+                continue
             text = _text(source, node)
-            if re.search(r"cors\s*\(\s*\{", text):
-                if re.search(r"origin\s*:\s*['\"]\*['\"]", text) and re.search(r"credentials\s*:\s*true\b", text, re.IGNORECASE):
-                    out.append(_mk("CORS-001", "CORS Misconfiguration", rel_path, node.start_point[0] + 1, text[:200], "high"))
+            if re.search(r"origin\s*:\s*['\"]\*['\"]", text) and re.search(r"credentials\s*:\s*true\b", text, re.IGNORECASE):
+                out.append(_mk("CORS-001", "CORS Misconfiguration", rel_path, node.start_point[0] + 1, text[:200], "high"))
     return out
 
 
@@ -875,9 +886,13 @@ def find_crypto_001_python(tree, source: bytes, rel_path: str) -> list[Candidate
     for node in _walk(tree.root_node):
         if node.type != "call":
             continue
-        call_text = _text(source, node)
-        if not re.search(r"\b(hashlib\.(md5|sha1)|MD5\.new|SHA1\.new)\s*\(", call_text):
+        fn = node.child_by_field_name("function")
+        if not fn:
             continue
+        fn_text = _text(source, fn)
+        if not re.search(r"\b(hashlib\.(md5|sha1)|MD5\.new|SHA1\.new)$", fn_text):
+            continue
+        call_text = _text(source, node)
         stmt = node.parent
         while stmt is not None and stmt.type not in ("assignment", "return_statement", "expression_statement"):
             stmt = stmt.parent
@@ -891,6 +906,12 @@ def find_crypto_001_javascript(tree, source: bytes, rel_path: str) -> list[Candi
     out = []
     for node in _walk(tree.root_node):
         if node.type != "call_expression":
+            continue
+        fn = node.child_by_field_name("function")
+        if not fn:
+            continue
+        fn_text = _text(source, fn)
+        if not (fn_text.endswith("createHash") or fn_text == "createHash"):
             continue
         call_text = _text(source, node)
         if not re.search(r"createHash\s*\(\s*['\"](md5|sha1)['\"]\s*\)", call_text, re.IGNORECASE):
@@ -914,10 +935,14 @@ _WEAK_CIPHER_JS = re.compile(r"(?i)['\"](des(-ecb|-cbc)?|rc4|blowfish|aes-(128|1
 def find_crypto_002_python(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
     out = []
     for node in _walk(tree.root_node):
-        if node.type in ("call", "attribute"):
-            text = _text(source, node)
-            if _WEAK_CIPHER_RE.search(text):
-                out.append(_mk("CRYPTO-002", "Insecure Cryptography", rel_path, node.start_point[0] + 1, text[:200], "high"))
+        if node.type != "call":
+            continue
+        fn = node.child_by_field_name("function")
+        if not fn:
+            continue
+        text = _text(source, fn)
+        if _WEAK_CIPHER_RE.search(text):
+            out.append(_mk("CRYPTO-002", "Insecure Cryptography", rel_path, node.start_point[0] + 1, _text(source, node)[:200], "high"))
     return out
 
 
@@ -993,22 +1018,40 @@ def find_jwt_001_javascript(tree, source: bytes, rel_path: str) -> list[Candidat
     for node in _walk(tree.root_node):
         if node.type != "call_expression":
             continue
+        fn = node.child_by_field_name("function")
+        if not fn:
+            continue
+        fn_text = _text(source, fn)
+        if not (fn_text == "jwt.verify" or fn_text.endswith(".verify") or fn_text == "jwt.decode" or fn_text.endswith(".decode")):
+            continue
         call_text = _text(source, node)
-        if "jwt.verify" in call_text or "jwt.decode" in call_text:
-            if re.search(r"algorithms\s*:\s*\[\s*['\"]none['\"]\s*\]", call_text, re.IGNORECASE):
-                out.append(_mk("JWT-001", "Insecure Authentication", rel_path, node.start_point[0] + 1, call_text[:200], "high"))
+        if re.search(r"algorithms\s*:\s*\[\s*['\"]none['\"]\s*\]", call_text, re.IGNORECASE):
+            out.append(_mk("JWT-001", "Insecure Authentication", rel_path, node.start_point[0] + 1, call_text[:200], "high"))
     return out
 
 
 # ---------------------------------------------------------------------------
 # CONFIG-001 (Python & JS/TS): Debug mode enabled in production code.
 # ---------------------------------------------------------------------------
+def _is_inside_main_guard(node, source: bytes) -> bool:
+    curr = node.parent
+    while curr is not None:
+        if curr.type == "if_statement":
+            cond = curr.child_by_field_name("condition")
+            if cond and "__main__" in _text(source, cond):
+                return True
+        curr = curr.parent
+    return False
+
+
 def find_config_001_python(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
     out = []
     for node in _walk(tree.root_node):
         if node.type == "call":
             text = _text(source, node)
             if re.search(r"\bapp\.run\s*\(.*debug\s*=\s*True", text):
+                if _is_inside_main_guard(node, source):
+                    continue
                 out.append(_mk("CONFIG-001", "Security Misconfiguration", rel_path, node.start_point[0] + 1, text[:200], "high"))
         elif node.type == "assignment":
             left = node.child_by_field_name("left")
@@ -1016,7 +1059,7 @@ def find_config_001_python(tree, source: bytes, rel_path: str) -> list[Candidate
             if left and right:
                 left_text = _text(source, left).strip()
                 right_text = _text(source, right).strip()
-                if left_text == "DEBUG" and right_text == "True":
+                if (left_text == "DEBUG" or "config['DEBUG']" in left_text or 'config["DEBUG"]' in left_text) and right_text == "True":
                     out.append(_mk("CONFIG-001", "Security Misconfiguration", rel_path, node.start_point[0] + 1, _text(source, node)[:200], "high"))
     return out
 
@@ -1069,7 +1112,7 @@ def find_config_002_javascript(tree, source: bytes, rel_path: str) -> list[Candi
 # ---------------------------------------------------------------------------
 # XXE-001 (Python & JS/TS): Unsafe XML parsing with entity expansion.
 # ---------------------------------------------------------------------------
-_XML_UNSAFE_CALLS = re.compile(r"\b(lxml\.etree\.(parse|fromstring)|xml\.etree\.ElementTree\.(parse|fromstring)|minidom\.parse|sax\.parse)\b")
+_XML_UNSAFE_CALLS = re.compile(r"\b((lxml\.)?(etree|ElementTree|ET|minidom|sax)\.(parse|fromstring|parseString))\b")
 
 
 def find_xxe_001_python(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
@@ -1089,10 +1132,14 @@ def find_xxe_001_python(tree, source: bytes, rel_path: str) -> list[CandidateFin
 def find_xxe_001_javascript(tree, source: bytes, rel_path: str) -> list[CandidateFinding]:
     out = []
     for node in _walk(tree.root_node):
-        if node.type == "call_expression":
-            text = _text(source, node)
-            if "parseXml" in text and re.search(r"noent\s*:\s*true\b", text, re.IGNORECASE):
-                out.append(_mk("XXE-001", "XML External Entity", rel_path, node.start_point[0] + 1, text[:200], "high"))
+        if node.type != "call_expression":
+            continue
+        fn = node.child_by_field_name("function")
+        if not fn or not (_text(source, fn).endswith("parseXml") or _text(source, fn) == "parseXml"):
+            continue
+        text = _text(source, node)
+        if re.search(r"noent\s*:\s*true\b", text, re.IGNORECASE):
+            out.append(_mk("XXE-001", "XML External Entity", rel_path, node.start_point[0] + 1, text[:200], "high"))
     return out
 
 

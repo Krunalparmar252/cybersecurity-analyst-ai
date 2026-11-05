@@ -33,3 +33,4 @@ class ScannerAdapter(abc.ABC):
         message and gracefully return an empty list.
         """
         pass
+

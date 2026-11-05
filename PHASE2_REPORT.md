@@ -22,3 +22,4 @@ Phase 2 introduces:
 - **Execution Mode**: Deterministic offline mode fully functional with no external binaries, no API key, and no network dependencies.
 
 ---
+

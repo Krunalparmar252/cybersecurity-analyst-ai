@@ -34,7 +34,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/krunalparmar252/cybersecurity-analyst-ai
+          images: ghcr.io/${{ github.repository }}
           tags: |
             type=raw,value=latest
             type=sha,format=short

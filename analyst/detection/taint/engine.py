@@ -54,7 +54,7 @@ class FunctionSummary:
     line: int
     params: list[str] = field(default_factory=list)
     returns_params: set[str] = field(default_factory=set)
-    sink_calls: list[tuple[str, str, int]] = field(default_factory=list)  # (param_name, sink_class, line)
+    sink_calls: list[tuple[str, str, int]] = field(default_factory=list)
 
 
 class TaintEngine:
@@ -152,7 +152,6 @@ class TaintEngine:
             if flag in text or flag in scope_text:
                 return True
 
-        # General sanitizers (number casts neutralize string injections)
         if vuln_class in ("SQL Injection", "Command Injection", "Path Traversal", "Cross-Site Scripting"):
             if re.search(r'\b(int|float|bool|parseInt|Number)\(', text):
                 return True
@@ -168,94 +167,116 @@ class TaintEngine:
         vuln_class: str,
         language: str = "python",
     ) -> Optional[list[dict]]:
-        """Trace whether expr_node is built from tainted input without proper sanitization.
-
-        Returns dataflow steps if tainted, or None if safe/untainted.
-        """
+        """Trace whether expr_node is built from tainted input without proper sanitization."""
         if not TAINT_ENGINE_ENABLED:
             return None
 
         node_text = self._node_text(expr_node, source)
 
-        # 1. Direct sanitizer check
+        # 1. Direct sanitizer check on target expression or scope
         scope_node = self._find_enclosing_function_or_module(expr_node)
         scope_text = self._node_text(scope_node, source) if scope_node else ""
         if self.is_sanitized_for_class(node_text, vuln_class, language, scope_text):
             return None
 
-        # 2. Check if expression directly contains a source
+        # 2. Direct source check
         if self.is_source_expression(node_text, language):
             return [
-                DataflowStep(file=rel_path, line=expr_node.start_point[0] + 1, description=f"Direct source read: {node_text[:80]}").to_dict(),
-                DataflowStep(file=rel_path, line=expr_node.start_point[0] + 1, description=f"Sink argument ({vuln_class})").to_dict(),
+                DataflowStep(file=rel_path, line=expr_node.start_point[0] + 1, description=f"Direct source: {node_text[:80]}").to_dict(),
+                DataflowStep(file=rel_path, line=expr_node.start_point[0] + 1, description=f"Sink reach ({vuln_class})").to_dict(),
             ]
 
-        # 3. Check variables referenced in the expression
-        vars_in_expr = set(re.findall(r'[a-zA-Z_][a-zA-Z0-9_]*', node_text))
-        # Ignore language keywords and constants
-        vars_in_expr -= {"self", "cls", "true", "false", "null", "none", "None", "True", "False", "def", "return", "if", "for", "while"}
+        # 3. Forward taint propagation through scope assignments
+        tainted_vars: dict[str, DataflowStep] = {}
+        dataflow_steps: list[dict] = []
 
-        if not vars_in_expr:
-            return None
+        # Initialize tainted variables from function parameters if named like user input
+        fn_params = self._get_enclosing_params(expr_node, source, language)
+        param_patterns = SOURCES_CONFIG.get(language, {}).get("param_names", [])
+        for p in fn_params:
+            if any(pat.lower() in p.lower() for pat in param_patterns) or p in ("target", "url", "cmd", "query", "user_input", "val"):
+                step = DataflowStep(file=rel_path, line=expr_node.start_point[0] + 1, description=f"Parameter source: {p}")
+                tainted_vars[p] = step
 
-        # Scan enclosing scope for assignments to these variables
-        dataflow: list[dict] = []
-        tainted_vars: set[str] = set()
-
+        # Walk assignments up to expr_node in lexical order
         if scope_node:
             for n in self._walk(scope_node):
                 if n.start_byte >= expr_node.start_byte:
-                    continue  # Only look at prior assignments
+                    continue
+
+                var_name = None
+                right_text = None
 
                 if language == "python" and n.type == "assignment":
                     left = n.child_by_field_name("left")
                     right = n.child_by_field_name("right")
                     if left and right:
                         var_name = self._node_text(left, source).strip()
-                        if var_name in vars_in_expr:
-                            right_text = self._node_text(right, source)
-                            # Check if right side is sanitized
-                            if self.is_sanitized_for_class(right_text, vuln_class, language, scope_text):
-                                continue
-                            if self.is_source_expression(right_text, language) or any(tv in right_text for tv in tainted_vars):
-                                tainted_vars.add(var_name)
-                                dataflow.append(
-                                    DataflowStep(file=rel_path, line=n.start_point[0] + 1, description=f"Assignment: {var_name} = {right_text[:60]}").to_dict()
-                                )
+                        right_text = self._node_text(right, source)
 
                 elif language in ("javascript", "typescript") and n.type in ("variable_declarator", "assignment_expression"):
                     left = n.child_by_field_name("name") or n.child_by_field_name("left")
                     right = n.child_by_field_name("value") or n.child_by_field_name("right")
                     if left and right:
                         var_name = self._node_text(left, source).strip()
-                        if var_name in vars_in_expr:
-                            right_text = self._node_text(right, source)
-                            if self.is_sanitized_for_class(right_text, vuln_class, language, scope_text):
-                                continue
-                            if self.is_source_expression(right_text, language) or any(tv in right_text for tv in tainted_vars):
-                                tainted_vars.add(var_name)
-                                dataflow.append(
-                                    DataflowStep(file=rel_path, line=n.start_point[0] + 1, description=f"Assignment: {var_name} = {right_text[:60]}").to_dict()
-                                )
+                        right_text = self._node_text(right, source)
 
-        # 4. Check function parameters
-        fn_params = self._get_enclosing_params(expr_node, source, language)
-        for var_name in vars_in_expr:
-            if var_name in fn_params:
-                # Parameter considered tainted if name suggests user input or matches common sources
-                param_patterns = SOURCES_CONFIG.get(language, {}).get("param_names", [])
-                if any(p.lower() in var_name.lower() for p in param_patterns) or var_name in ("target", "url", "cmd", "query", "user_input"):
-                    tainted_vars.add(var_name)
-                    dataflow.insert(
-                        0,
-                        DataflowStep(file=rel_path, line=expr_node.start_point[0] + 1, description=f"Function parameter: {var_name}").to_dict()
-                    )
+                if var_name and right_text:
+                    # If right side is sanitized, neutralize var_name
+                    if self.is_sanitized_for_class(right_text, vuln_class, language, scope_text):
+                        tainted_vars.pop(var_name, None)
+                        continue
 
-        if tainted_vars:
-            dataflow.append(
-                DataflowStep(file=rel_path, line=expr_node.start_point[0] + 1, description=f"Sink reach ({vuln_class}): {node_text[:60]}").to_dict()
+                    # Check if right side is source or contains any currently tainted var
+                    is_tainted = False
+                    reason = ""
+                    if self.is_source_expression(right_text, language):
+                        is_tainted = True
+                        reason = f"Source read: {right_text[:60]}"
+                    else:
+                        for tv in list(tainted_vars.keys()):
+                            if re.search(r'\b' + re.escape(tv) + r'\b', right_text) or f"{{{tv}}}" in right_text:
+                                is_tainted = True
+                                reason = f"Propagate from {tv}: {var_name} = {right_text[:60]}"
+                                break
+
+                    # Cross-function return flow: check if right_text calls a function that returns a tainted param
+                    if not is_tainted:
+                        call_match = re.search(r'([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)', right_text)
+                        if call_match:
+                            called_fn = call_match.group(1)
+                            called_arg = call_match.group(2).strip()
+                            file_summaries = self._summaries_by_file.get(rel_path, {})
+                            if not file_summaries and hasattr(self, "_current_tree_summaries"):
+                                file_summaries = self._current_tree_summaries
+                            else:
+                                file_summaries = self.build_file_summaries(tree, source, rel_path)
+
+                            summary = file_summaries.get(called_fn)
+                            if summary and summary.returns_params:
+                                for tv in tainted_vars:
+                                    if tv in called_arg:
+                                        is_tainted = True
+                                        reason = f"Call {called_fn}({tv}) returns tainted value"
+                                        break
+
+                    if is_tainted:
+                        step = DataflowStep(file=rel_path, line=n.start_point[0] + 1, description=reason)
+                        tainted_vars[var_name] = step
+                        dataflow_steps.append(step.to_dict())
+
+        # 4. Check if expr_node references any tainted variable
+        expr_is_tainted = False
+        for tv, step in tainted_vars.items():
+            if re.search(r'\b' + re.escape(tv) + r'\b', node_text) or f"{{{tv}}}" in node_text:
+                expr_is_tainted = True
+                break
+
+        if expr_is_tainted:
+            dataflow_steps.append(
+                DataflowStep(file=rel_path, line=expr_node.start_point[0] + 1, description=f"Sink argument ({vuln_class}): {node_text[:60]}").to_dict()
             )
-            return dataflow
+            return dataflow_steps
 
         return None
 

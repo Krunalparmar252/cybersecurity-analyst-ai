@@ -158,3 +158,4 @@ class SemgrepAdapter(ScannerAdapter):
             )
 
         return findings
+

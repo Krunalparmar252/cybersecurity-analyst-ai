@@ -1,0 +1,99 @@
+[
+  {
+    "id": "GT-P2-JS-001",
+    "file": "server.js",
+    "line": 13,
+    "rule_id": "CORS-001",
+    "class": "CORS Misconfiguration",
+    "description": "Wildcard CORS origin combined with credentials in Express"
+  },
+  {
+    "id": "GT-P2-JS-002",
+    "file": "server.js",
+    "line": 21,
+    "rule_id": "REDIR-001",
+    "class": "Open Redirect",
+    "description": "Express open redirect using unvalidated req.query.url"
+  },
+  {
+    "id": "GT-P2-JS-003",
+    "file": "server.js",
+    "line": 35,
+    "rule_id": "CRYPTO-001",
+    "class": "Insecure Cryptography",
+    "description": "Weak MD5 hash algorithm applied to auth token"
+  },
+  {
+    "id": "GT-P2-JS-004",
+    "file": "server.js",
+    "line": 44,
+    "rule_id": "CRYPTO-002",
+    "class": "Insecure Cryptography",
+    "description": "Insecure DES-ECB cipher initialization"
+  },
+  {
+    "id": "GT-P2-JS-005",
+    "file": "server.js",
+    "line": 52,
+    "rule_id": "CRYPTO-003",
+    "class": "Insecure Cryptography",
+    "description": "Math.random() used to generate reset token"
+  },
+  {
+    "id": "GT-P2-JS-006",
+    "file": "server.js",
+    "line": 62,
+    "rule_id": "TLS-001",
+    "class": "Insecure TLS Configuration",
+    "description": "rejectUnauthorized explicitly set to false"
+  },
+  {
+    "id": "GT-P2-JS-007",
+    "file": "server.js",
+    "line": 70,
+    "rule_id": "CONFIG-002",
+    "class": "Broken Authentication",
+    "description": "Cookie set without secure and httpOnly flags"
+  },
+  {
+    "id": "GT-P2-JS-008",
+    "file": "server.js",
+    "line": 79,
+    "rule_id": "JWT-001",
+    "class": "Insecure Authentication",
+    "description": "JWT verify allowing algorithm 'none'"
+  },
+  {
+    "id": "GT-P2-JS-009",
+    "file": "server.js",
+    "line": 88,
+    "rule_id": "XXE-001",
+    "class": "XML External Entity",
+    "description": "XML parsing with external entity resolution enabled (noent: true)"
+  },
+  {
+    "id": "GT-P2-JS-010",
+    "file": "server.js",
+    "line": 95,
+    "rule_id": "SSTI-001",
+    "class": "Server-Side Template Injection",
+    "description": "EJS template dynamically rendered from user query parameter"
+  },
+  {
+    "id": "GT-P2-JS-011",
+    "file": "server.js",
+    "line": 104,
+    "rule_id": "ZIPSLIP-001",
+    "class": "Path Traversal",
+    "description": "Unsafe zip extraction using extractAllTo without path validation"
+  },
+  {
+    "id": "GT-P2-JS-012",
+    "file": "server.js",
+    "line": 118,
+    "rule_id": "CONFIG-001",
+    "class": "Security Misconfiguration",
+    "description": "Express app configured with development environment in production file"
+  }
+]
+

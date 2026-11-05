@@ -43,3 +43,4 @@ def get_available_adapters(scanners_filter: Optional[list[str]] = None) -> list[
             logger.info("Scanner '%s' is not available in environment; skipping.", adapter.name)
 
     return selected
+

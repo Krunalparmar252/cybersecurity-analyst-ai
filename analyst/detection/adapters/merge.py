@@ -57,3 +57,4 @@ def merge_findings(
             merged.append(ext)
 
     return merged
+

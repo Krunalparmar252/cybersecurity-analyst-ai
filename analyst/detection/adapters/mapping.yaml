@@ -169,3 +169,4 @@ semgrep:
     class: "Path Traversal"
     cwe: "CWE-22"
     rule_id: "ZIPSLIP-001"
+

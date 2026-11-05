@@ -1,0 +1,98 @@
+[
+  {
+    "id": "GT-P2-PY-001",
+    "file": "app.py",
+    "line": 17,
+    "rule_id": "CORS-001",
+    "class": "CORS Misconfiguration",
+    "description": "Wildcard CORS origin with credentials enabled"
+  },
+  {
+    "id": "GT-P2-PY-002",
+    "file": "app.py",
+    "line": 26,
+    "rule_id": "REDIR-001",
+    "class": "Open Redirect",
+    "description": "Open redirect using unvalidated URL parameter"
+  },
+  {
+    "id": "GT-P2-PY-003",
+    "file": "app.py",
+    "line": 39,
+    "rule_id": "CRYPTO-001",
+    "class": "Insecure Cryptography",
+    "description": "Weak MD5 hash algorithm applied to security token"
+  },
+  {
+    "id": "GT-P2-PY-004",
+    "file": "app.py",
+    "line": 48,
+    "rule_id": "CRYPTO-002",
+    "class": "Insecure Cryptography",
+    "description": "Insecure ARC4 stream cipher instantiation"
+  },
+  {
+    "id": "GT-P2-PY-005",
+    "file": "app.py",
+    "line": 56,
+    "rule_id": "CRYPTO-003",
+    "class": "Insecure Cryptography",
+    "description": "Insecure pseudo-random number generator used for reset token"
+  },
+  {
+    "id": "GT-P2-PY-006",
+    "file": "app.py",
+    "line": 66,
+    "rule_id": "TLS-001",
+    "class": "Insecure TLS Configuration",
+    "description": "TLS certificate verification explicitly disabled (verify=False)"
+  },
+  {
+    "id": "GT-P2-PY-007",
+    "file": "app.py",
+    "line": 75,
+    "rule_id": "CONFIG-002",
+    "class": "Broken Authentication",
+    "description": "Cookie set without secure and httponly flags"
+  },
+  {
+    "id": "GT-P2-PY-008",
+    "file": "app.py",
+    "line": 84,
+    "rule_id": "JWT-001",
+    "class": "Insecure Authentication",
+    "description": "JWT signature verification explicitly disabled"
+  },
+  {
+    "id": "GT-P2-PY-009",
+    "file": "app.py",
+    "line": 93,
+    "rule_id": "XXE-001",
+    "class": "XML External Entity",
+    "description": "Unsafe XML parsing using standard ElementTree without defusedxml"
+  },
+  {
+    "id": "GT-P2-PY-010",
+    "file": "app.py",
+    "line": 100,
+    "rule_id": "SSTI-001",
+    "class": "Server-Side Template Injection",
+    "description": "Jinja2 template dynamically compiled from user input"
+  },
+  {
+    "id": "GT-P2-PY-011",
+    "file": "app.py",
+    "line": 108,
+    "rule_id": "ZIPSLIP-001",
+    "class": "Path Traversal",
+    "description": "Unsafe tar archive extraction without member path validation"
+  },
+  {
+    "id": "GT-P2-PY-012",
+    "file": "app.py",
+    "line": 118,
+    "rule_id": "CONFIG-001",
+    "class": "Security Misconfiguration",
+    "description": "Flask application executed with debug=True in production entrypoint"
+  }
+]
