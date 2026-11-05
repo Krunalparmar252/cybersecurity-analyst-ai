@@ -15,3 +15,4 @@ run-benchmarks:
 	python benchmarks/run_benchmarks.py
 
 benchmarks: fetch-benchmarks labels run-benchmarks
+

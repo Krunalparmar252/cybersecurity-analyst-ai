@@ -27,12 +27,6 @@ if str(ROOT_DIR) not in sys.path:
 
 import yaml
 
-# Headless matplotlib
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import numpy as np
-
 from analyst.common.types import CandidateFinding
 from analyst.detection.adapters import get_available_adapters
 from analyst.detection.agent import run_detection_agent
@@ -223,6 +217,14 @@ def run_single_benchmark(
 
 def generate_charts(results: List[Dict[str, Any]], output_dir: Path) -> None:
     """Generate presentation-ready evaluation charts with matplotlib."""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import numpy as np
+    except ImportError:
+        print("Warning: matplotlib/numpy not installed. Skipping chart generation.")
+        return
     output_dir.mkdir(parents=True, exist_ok=True)
     completed = [r for r in results if r.get("status") == "completed"]
     if not completed:

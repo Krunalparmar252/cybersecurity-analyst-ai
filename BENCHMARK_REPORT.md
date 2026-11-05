@@ -212,3 +212,4 @@ We do **NOT** claim:
 - Software Composition Analysis (SCA) or vulnerability scanning of third-party package registries.
 - That 100% recall on PyGoat implies 100% recall on arbitrary enterprise Django applications.
 - That the current engine replaces dynamic DAST testing or human penetration testing.
+
