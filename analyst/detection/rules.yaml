@@ -34,5 +34,17 @@ rules:
   - {id: DESER-003, class: Unsafe Deserialization, match: ast, languages: [javascript, typescript], module: rules_extra, note: "node-serialize unserialize, unsafe yaml.load, vm.runInContext"}
   - {id: AUTH-005, class: Broken Authentication, match: ast, languages: [javascript, typescript], module: rules_extra, note: "password compared with ==/=== instead of bcrypt/argon2 compare"}
   - {id: AUTH-006, class: Broken Authentication, match: ast, languages: [javascript, typescript], module: rules_extra, note: "crypto.createHash('md5'|'sha1') applied to password value"}
+  - {id: REDIR-001, class: Open Redirect, match: ast, languages: [python, javascript, typescript], module: rules_extra, note: "redirect()/res.redirect with tainted URL and no allowlist"}
+  - {id: CRYPTO-001, class: Insecure Cryptography, match: ast, languages: [python, javascript, typescript], module: rules_extra, note: "md5/sha1 hash on security tokens or signatures"}
+  - {id: CRYPTO-002, class: Insecure Cryptography, match: ast, languages: [python, javascript, typescript], module: rules_extra, note: "weak cipher or mode: DES, RC4, AES-ECB"}
+  - {id: CRYPTO-003, class: Insecure Cryptography, match: ast, languages: [python, javascript, typescript], module: rules_extra, note: "insecure pseudo-random generator for secrets, tokens, or sessions"}
+  - {id: TLS-001, class: Insecure TLS Configuration, match: ast, languages: [python, javascript, typescript], module: rules_extra, note: "TLS certificate verification disabled (verify=False, rejectUnauthorized:false)"}
+  - {id: CONFIG-001, class: Security Misconfiguration, match: ast, languages: [python, javascript, typescript], module: rules_extra, note: "debug mode enabled in production code (debug=True, env=development)"}
+  - {id: CONFIG-002, class: Broken Authentication, match: ast, languages: [python, javascript, typescript], module: rules_extra, note: "cookie set without secure or httponly flags"}
+  - {id: JWT-001, class: Insecure Authentication, match: ast, languages: [python, javascript, typescript], module: rules_extra, note: "JWT verification disabled, algorithm none, or unverified decode"}
+  - {id: CORS-001, class: CORS Misconfiguration, match: ast, languages: [python, javascript, typescript], module: rules_extra, note: "wildcard origin Access-Control-Allow-Origin: * combined with credentials: true"}
+  - {id: XXE-001, class: XML External Entity, match: ast, languages: [python, javascript, typescript], module: rules_extra, note: "unsafe XML parsing without defusedxml or with entity expansion"}
+  - {id: SSTI-001, class: Server-Side Template Injection, match: ast, languages: [python, javascript, typescript], module: rules_extra, note: "server-side template injection via tainted template string"}
+  - {id: ZIPSLIP-001, class: Path Traversal, match: ast, languages: [python, javascript, typescript], module: rules_extra, note: "unsafe archive extraction (extractall, extractAllTo) without member path check"}
 # Specified in rules.md but NOT implemented (listed so the gap is explicit).
 not_implemented: []

@@ -472,6 +472,12 @@ _AST_RULES_BY_LANGUAGE = {
         rules_extra.find_sqli_002, rules_extra.find_auth_001, rules_extra.find_auth_002,
         rules_extra.find_xss_004, rules_extra.find_auth_003, rules_extra.find_auth_004,
         rules_extra.find_ssrf_001_python,
+        rules_extra.find_redir_001_python, rules_extra.find_tls_001_python,
+        rules_extra.find_cors_001_python, rules_extra.find_crypto_001_python,
+        rules_extra.find_crypto_002_python, rules_extra.find_crypto_003_python,
+        rules_extra.find_jwt_001_python, rules_extra.find_config_001_python,
+        rules_extra.find_config_002_python, rules_extra.find_xxe_001_python,
+        rules_extra.find_ssti_001_python, rules_extra.find_zipslip_001_python,
     ),
     "javascript": (
         _find_sqli_javascript, _find_xss_javascript,
@@ -480,6 +486,12 @@ _AST_RULES_BY_LANGUAGE = {
         rules_extra.find_deser_003, rules_extra.find_auth_005, rules_extra.find_auth_006,
         rules_extra.find_auth_003_javascript, rules_extra.find_auth_004_javascript,
         rules_extra.find_ssrf_001_javascript,
+        rules_extra.find_redir_001_javascript, rules_extra.find_tls_001_javascript,
+        rules_extra.find_cors_001_javascript, rules_extra.find_crypto_001_javascript,
+        rules_extra.find_crypto_002_javascript, rules_extra.find_crypto_003_javascript,
+        rules_extra.find_jwt_001_javascript, rules_extra.find_config_001_javascript,
+        rules_extra.find_config_002_javascript, rules_extra.find_xxe_001_javascript,
+        rules_extra.find_ssti_001_javascript, rules_extra.find_zipslip_001_javascript,
     ),
     # TypeScript's tree-sitter grammar reuses the exact same node type names
     # for the constructs these rules key on (call_expression, member_expression,
@@ -494,6 +506,12 @@ _AST_RULES_BY_LANGUAGE = {
         rules_extra.find_deser_003, rules_extra.find_auth_005, rules_extra.find_auth_006,
         rules_extra.find_auth_003_javascript, rules_extra.find_auth_004_javascript,
         rules_extra.find_ssrf_001_javascript,
+        rules_extra.find_redir_001_javascript, rules_extra.find_tls_001_javascript,
+        rules_extra.find_cors_001_javascript, rules_extra.find_crypto_001_javascript,
+        rules_extra.find_crypto_002_javascript, rules_extra.find_crypto_003_javascript,
+        rules_extra.find_jwt_001_javascript, rules_extra.find_config_001_javascript,
+        rules_extra.find_config_002_javascript, rules_extra.find_xxe_001_javascript,
+        rules_extra.find_ssti_001_javascript, rules_extra.find_zipslip_001_javascript,
     ),
 }
 
@@ -520,6 +538,9 @@ _SUPERSEDED_BY = {
     "SQLI-001": {"SQLI-002"},
     "XSS-002": {"XSS-004"},
     "SECRET-005": {"SECRET-001", "SECRET-002", "SECRET-003", "SECRET-004", "SECRET-006"},
+    "CONFIG-002": {"AUTH-004"},
+    "CRYPTO-001": {"AUTH-002", "AUTH-006"},
+    "SSTI-001": {"XSS-004"},
 }
 
 
