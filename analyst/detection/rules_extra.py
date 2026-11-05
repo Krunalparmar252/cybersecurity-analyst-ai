@@ -29,10 +29,11 @@ from analyst.common.redact import (  # noqa: E402  single source for secret shap
 )
 
 
-def _mk(rule_id, vuln_class, rel_path, line, snippet, confidence="high", scanner="static"):
+def _mk(rule_id, vuln_class, rel_path, line, snippet, confidence="high", scanner="static", dataflow=None):
     return CandidateFinding(
         rule_id=rule_id, vuln_class=vuln_class, file=rel_path, line=line,
         snippet=snippet[:200], confidence=confidence, source_scanner=scanner,
+        dataflow=dataflow or [],
     )
 
 

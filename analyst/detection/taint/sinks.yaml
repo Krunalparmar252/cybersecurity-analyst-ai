@@ -1,0 +1,155 @@
+# Taint Analysis Sinks Catalog
+# Defines dangerous targets / functions mapped to vulnerability classes.
+
+python:
+  "SQL Injection":
+    calls:
+      - "execute"
+      - "executemany"
+      - "raw"
+      - "query"
+  "Cross-Site Scripting":
+    calls:
+      - "render_template_string"
+    members:
+      - "innerHTML"
+  "Command Injection":
+    calls:
+      - "os.system"
+      - "os.popen"
+      - "subprocess.Popen"
+      - "subprocess.run"
+      - "subprocess.call"
+      - "subprocess.check_output"
+  "Path Traversal":
+    calls:
+      - "open"
+      - "send_file"
+      - "send_from_directory"
+      - "os.remove"
+      - "os.unlink"
+  "Unsafe Deserialization":
+    calls:
+      - "pickle.loads"
+      - "pickle.load"
+      - "yaml.load"
+      - "_pickle.loads"
+  "Server-Side Request Forgery":
+    calls:
+      - "requests.get"
+      - "requests.post"
+      - "requests.put"
+      - "requests.delete"
+      - "requests.request"
+      - "urllib.request.urlopen"
+      - "httpx.get"
+      - "httpx.post"
+      - "aiohttp.request"
+  "Open Redirect":
+    calls:
+      - "redirect"
+      - "flask.redirect"
+  "XML External Entity":
+    calls:
+      - "lxml.etree.parse"
+      - "lxml.etree.fromstring"
+      - "xml.etree.ElementTree.parse"
+      - "xml.etree.ElementTree.fromstring"
+      - "xml.sax.parse"
+      - "xml.dom.minidom.parse"
+  "Server-Side Template Injection":
+    calls:
+      - "render_template_string"
+      - "Template"
+      - "jinja2.Template"
+  "Path Traversal (Zip Slip)":
+    calls:
+      - "extractall"
+      - "extract"
+
+javascript:
+  "SQL Injection":
+    calls:
+      - "query"
+      - "execute"
+      - "raw"
+  "Cross-Site Scripting":
+    members:
+      - "innerHTML"
+      - "outerHTML"
+    jsx_attributes:
+      - "dangerouslySetInnerHTML"
+  "Command Injection":
+    calls:
+      - "child_process.exec"
+      - "child_process.execSync"
+      - "exec"
+      - "execSync"
+  "Path Traversal":
+    calls:
+      - "fs.readFile"
+      - "fs.readFileSync"
+      - "fs.createReadStream"
+      - "fs.writeFile"
+      - "fs.writeFileSync"
+      - "res.sendFile"
+  "Unsafe Deserialization":
+    calls:
+      - "serialize.unserialize"
+      - "node-serialize.unserialize"
+      - "yaml.load"
+      - "vm.runInContext"
+      - "eval"
+  "Server-Side Request Forgery":
+    calls:
+      - "fetch"
+      - "axios.get"
+      - "axios.post"
+      - "http.get"
+      - "https.get"
+  "Open Redirect":
+    calls:
+      - "res.redirect"
+      - "redirect"
+  "Server-Side Template Injection":
+    calls:
+      - "ejs.render"
+      - "pug.render"
+      - "nunjucks.renderString"
+  "Path Traversal (Zip Slip)":
+    calls:
+      - "extractAllTo"
+
+typescript:
+  "SQL Injection":
+    calls:
+      - "query"
+      - "execute"
+      - "raw"
+  "Cross-Site Scripting":
+    members:
+      - "innerHTML"
+    jsx_attributes:
+      - "dangerouslySetInnerHTML"
+  "Command Injection":
+    calls:
+      - "child_process.exec"
+      - "child_process.execSync"
+  "Path Traversal":
+    calls:
+      - "fs.readFile"
+      - "fs.readFileSync"
+      - "res.sendFile"
+  "Unsafe Deserialization":
+    calls:
+      - "yaml.load"
+      - "eval"
+  "Server-Side Request Forgery":
+    calls:
+      - "fetch"
+      - "axios.get"
+      - "http.get"
+  "Open Redirect":
+    calls:
+      - "res.redirect"
+      - "redirect"

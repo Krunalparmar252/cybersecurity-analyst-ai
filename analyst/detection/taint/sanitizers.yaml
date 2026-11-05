@@ -1,0 +1,135 @@
+# Taint Analysis Sanitizers Catalog
+# Defines functions, methods, casts, and validation checks that neutralize taint per vulnerability class.
+
+python:
+  "SQL Injection":
+    calls:
+      - "sql.quote"
+      - "int"
+      - "float"
+      - "bool"
+      - "uuid.UUID"
+    patterns:
+      - "parameterized"
+      - "safe_query"
+  "Cross-Site Scripting":
+    calls:
+      - "html.escape"
+      - "markupsafe.escape"
+      - "bleach.clean"
+      - "cgi.escape"
+      - "int"
+      - "float"
+      - "bool"
+  "Command Injection":
+    calls:
+      - "shlex.quote"
+      - "int"
+      - "float"
+  "Path Traversal":
+    calls:
+      - "secure_filename"
+      - "os.path.basename"
+    checks:
+      - "startswith"
+      - "commonpath"
+  "Server-Side Request Forgery":
+    checks:
+      - "in ALLOWED"
+      - "in allowed"
+      - "in WHITELIST"
+      - "in whitelist"
+      - "startswith"
+  "Open Redirect":
+    checks:
+      - "startswith"
+      - "in ALLOWED"
+      - "in allowed"
+      - "is_safe_url"
+  "Unsafe Deserialization":
+    calls:
+      - "yaml.safe_load"
+      - "json.loads"
+  "XML External Entity":
+    calls:
+      - "defusedxml"
+    flags:
+      - "resolve_entities=False"
+      - "forbid_dtd=True"
+  "Server-Side Template Injection":
+    checks:
+      - "template_parameterized"
+
+javascript:
+  "SQL Injection":
+    calls:
+      - "mysql.escape"
+      - "sqlstring.escape"
+      - "Number"
+      - "parseInt"
+      - "parseFloat"
+      - "Boolean"
+  "Cross-Site Scripting":
+    calls:
+      - "DOMPurify.sanitize"
+      - "encodeURIComponent"
+      - "validator.escape"
+      - "escapeHtml"
+      - "Number"
+      - "parseInt"
+      - "Boolean"
+  "Command Injection":
+    calls:
+      - "Number"
+      - "parseInt"
+    patterns:
+      - "spawn_args_array"
+  "Path Traversal":
+    calls:
+      - "path.basename"
+    checks:
+      - "startsWith"
+      - "includes"
+  "Server-Side Request Forgery":
+    checks:
+      - "includes"
+      - "has"
+      - "startsWith"
+  "Open Redirect":
+    checks:
+      - "startsWith"
+      - "includes"
+  "Unsafe Deserialization":
+    calls:
+      - "JSON.parse"
+    flags:
+      - "FAILSAFE_SCHEMA"
+
+typescript:
+  "SQL Injection":
+    calls:
+      - "mysql.escape"
+      - "sqlstring.escape"
+      - "Number"
+      - "parseInt"
+  "Cross-Site Scripting":
+    calls:
+      - "DOMPurify.sanitize"
+      - "encodeURIComponent"
+      - "validator.escape"
+  "Command Injection":
+    patterns:
+      - "spawn_args_array"
+  "Path Traversal":
+    calls:
+      - "path.basename"
+    checks:
+      - "startsWith"
+  "Server-Side Request Forgery":
+    checks:
+      - "includes"
+      - "has"
+  "Open Redirect":
+    checks:
+      - "startsWith"
+      - "includes"
