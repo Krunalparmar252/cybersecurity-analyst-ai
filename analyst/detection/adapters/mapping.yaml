@@ -1,0 +1,171 @@
+# Mapping of external scanner rule IDs to native Vulnerability Classes and CWEs.
+# Rules not listed here are intentionally dropped to prevent false positives and ungrounded guesses.
+
+bandit:
+  # SQL Injection
+  B608:
+    class: "SQL Injection"
+    cwe: "CWE-89"
+    rule_id: "SQLI-001"
+  # Command Injection
+  B602:
+    class: "Command Injection"
+    cwe: "CWE-78"
+    rule_id: "CMDINJ-001"
+  B605:
+    class: "Command Injection"
+    cwe: "CWE-78"
+    rule_id: "CMDINJ-001"
+  B607:
+    class: "Command Injection"
+    cwe: "CWE-78"
+    rule_id: "CMDINJ-001"
+  # Deserialization
+  B301:
+    class: "Unsafe Deserialization"
+    cwe: "CWE-502"
+    rule_id: "DESER-001"
+  B506:
+    class: "Unsafe Deserialization"
+    cwe: "CWE-502"
+    rule_id: "DESER-001"
+  # TLS / Verification
+  B501:
+    class: "Insecure TLS Configuration"
+    cwe: "CWE-295"
+    rule_id: "TLS-001"
+  # Hardcoded Secrets
+  B105:
+    class: "Hardcoded Secrets"
+    cwe: "CWE-798"
+    rule_id: "SECRET-005"
+  B106:
+    class: "Hardcoded Secrets"
+    cwe: "CWE-798"
+    rule_id: "SECRET-005"
+  # Weak Hashes & Crypto
+  B303:
+    class: "Broken Authentication"
+    cwe: "CWE-327"
+    rule_id: "AUTH-002"
+  B324:
+    class: "Broken Authentication"
+    cwe: "CWE-327"
+    rule_id: "AUTH-002"
+  B311:
+    class: "Insecure Cryptography"
+    cwe: "CWE-338"
+    rule_id: "CRYPTO-003"
+  # Debug mode
+  B201:
+    class: "Security Misconfiguration"
+    cwe: "CWE-489"
+    rule_id: "CONFIG-001"
+  # XXE
+  B313:
+    class: "XML External Entity"
+    cwe: "CWE-611"
+    rule_id: "XXE-001"
+  B314:
+    class: "XML External Entity"
+    cwe: "CWE-611"
+    rule_id: "XXE-001"
+  B315:
+    class: "XML External Entity"
+    cwe: "CWE-611"
+    rule_id: "XXE-001"
+  B316:
+    class: "XML External Entity"
+    cwe: "CWE-611"
+    rule_id: "XXE-001"
+  B317:
+    class: "XML External Entity"
+    cwe: "CWE-611"
+    rule_id: "XXE-001"
+  B318:
+    class: "XML External Entity"
+    cwe: "CWE-611"
+    rule_id: "XXE-001"
+  B319:
+    class: "XML External Entity"
+    cwe: "CWE-611"
+    rule_id: "XXE-001"
+  B320:
+    class: "XML External Entity"
+    cwe: "CWE-611"
+    rule_id: "XXE-001"
+
+semgrep:
+  # Pinned semgrep offline rules
+  rules.offline.sqli:
+    class: "SQL Injection"
+    cwe: "CWE-89"
+    rule_id: "SQLI-001"
+  rules.offline.cmdinj:
+    class: "Command Injection"
+    cwe: "CWE-78"
+    rule_id: "CMDINJ-001"
+  rules.offline.pathtrav:
+    class: "Path Traversal"
+    cwe: "CWE-22"
+    rule_id: "PATHTRAV-001"
+  rules.offline.deser:
+    class: "Unsafe Deserialization"
+    cwe: "CWE-502"
+    rule_id: "DESER-001"
+  rules.offline.ssrf:
+    class: "Server-Side Request Forgery"
+    cwe: "CWE-918"
+    rule_id: "SSRF-001"
+  rules.offline.xss:
+    class: "Cross-Site Scripting"
+    cwe: "CWE-79"
+    rule_id: "XSS-002"
+  rules.offline.secrets:
+    class: "Hardcoded Secrets"
+    cwe: "CWE-798"
+    rule_id: "SECRET-005"
+  rules.offline.weak_hash:
+    class: "Broken Authentication"
+    cwe: "CWE-327"
+    rule_id: "AUTH-002"
+  rules.offline.open_redirect:
+    class: "Open Redirect"
+    cwe: "CWE-601"
+    rule_id: "REDIR-001"
+  rules.offline.crypto_hash:
+    class: "Insecure Cryptography"
+    cwe: "CWE-328"
+    rule_id: "CRYPTO-001"
+  rules.offline.crypto_random:
+    class: "Insecure Cryptography"
+    cwe: "CWE-338"
+    rule_id: "CRYPTO-003"
+  rules.offline.tls_verify:
+    class: "Insecure TLS Configuration"
+    cwe: "CWE-295"
+    rule_id: "TLS-001"
+  rules.offline.debug_mode:
+    class: "Security Misconfiguration"
+    cwe: "CWE-489"
+    rule_id: "CONFIG-001"
+  rules.offline.insecure_cookie:
+    class: "Broken Authentication"
+    cwe: "CWE-614"
+    rule_id: "CONFIG-002"
+  rules.offline.jwt_unverified:
+    class: "Insecure Authentication"
+    cwe: "CWE-347"
+    rule_id: "JWT-001"
+  rules.offline.xxe:
+    class: "XML External Entity"
+    cwe: "CWE-611"
+    rule_id: "XXE-001"
+  rules.offline.ssti:
+    class: "Server-Side Template Injection"
+    cwe: "CWE-1336"
+    rule_id: "SSTI-001"
+  rules.offline.zipslip:
+    class: "Path Traversal"
+    cwe: "CWE-22"
+    rule_id: "ZIPSLIP-001"

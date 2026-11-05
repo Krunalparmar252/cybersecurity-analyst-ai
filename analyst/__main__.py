@@ -99,7 +99,12 @@ def cli():
         "re-reasoning on previously resolved findings."
     ),
 )
-def scan(repo_path, output, artifacts, verbose, fmt, engine, offline, dynamic, incremental, auto_apply=False):
+@click.option(
+    "--scanners",
+    default="native,bandit,semgrep",
+    help="Comma-separated scanners to run: native,bandit,semgrep (default: native plus any available)",
+)
+def scan(repo_path, output, artifacts, verbose, fmt, engine, offline, dynamic, incremental, scanners="native,bandit,semgrep", auto_apply=False):
     """Scan a local repository or git URL for security vulnerabilities.
 
     REPO_PATH accepts either a local directory path or a git URL
@@ -149,6 +154,10 @@ def scan(repo_path, output, artifacts, verbose, fmt, engine, offline, dynamic, i
 
         try:
             run_selected = ENGINES[engine]
+            extra_kwargs = {}
+            if engine == "linear":
+                extra_kwargs["scanners"] = scanners
+
             result = run_selected(
                 repo_path=repo_path,
                 output_path=str(md_path),
@@ -159,6 +168,7 @@ def scan(repo_path, output, artifacts, verbose, fmt, engine, offline, dynamic, i
                 offline=offline,
                 dynamic=dynamic,
                 incremental=incremental,
+                **extra_kwargs,
             )
         except Exception as exc:
             console.print(f"\n[bold red]Pipeline failed:[/bold red] {exc}")

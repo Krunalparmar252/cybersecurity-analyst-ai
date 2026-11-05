@@ -1,0 +1,161 @@
+rules:
+  - id: rules.offline.sqli
+    message: "Detected potential SQL injection via string formatting or concatenation in database query"
+    severity: ERROR
+    languages: [python, javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: $CURSOR.execute(f"...", ...)
+          - pattern: $CURSOR.execute("..." + $X, ...)
+          - pattern: $DB.query("..." + $X, ...)
+
+  - id: rules.offline.cmdinj
+    message: "Command execution with dynamic or user input"
+    severity: ERROR
+    languages: [python, javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.Popen(..., shell=True, ...)
+          - pattern: os.system(...)
+          - pattern: child_process.exec($CMD, ...)
+
+  - id: rules.offline.pathtrav
+    message: "Path traversal vulnerability: file opened or read without path validation"
+    severity: ERROR
+    languages: [python, javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: open("..." + $X, ...)
+          - pattern: fs.readFile("..." + $X, ...)
+          - pattern: fs.readFileSync("..." + $X, ...)
+
+  - id: rules.offline.deser
+    message: "Unsafe deserialization from untrusted data"
+    severity: ERROR
+    languages: [python, javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: pickle.loads(...)
+          - pattern: yaml.load($DATA)
+          - pattern: serialize.unserialize(...)
+
+  - id: rules.offline.ssrf
+    message: "Server-side request forgery: HTTP request to arbitrary URL"
+    severity: WARNING
+    languages: [python, javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: requests.get($URL, ...)
+          - pattern: fetch($URL, ...)
+          - pattern: axios.get($URL, ...)
+
+  - id: rules.offline.xss
+    message: "Cross-site scripting via unescaped output or dangerous DOM injection"
+    severity: ERROR
+    languages: [javascript, typescript, python]
+    patterns:
+      - pattern-either:
+          - pattern: $EL.innerHTML = $X
+          - pattern: dangerouslySetInnerHTML={{ __html: $X }}
+          - pattern: flask.render_template_string($TPL, ...)
+
+  - id: rules.offline.secrets
+    message: "Hardcoded secret or credential assignment"
+    severity: ERROR
+    languages: [python, javascript, typescript]
+    patterns:
+      - pattern-regex: '(?i)(api_key|secret_key|private_key|auth_token)\s*=\s*["\'][A-Za-z0-9_\-\.\/+=]{16,}["\']'
+
+  - id: rules.offline.weak_hash
+    message: "Weak hash algorithm used for password or sensitive digest"
+    severity: WARNING
+    languages: [python, javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: hashlib.md5(...)
+          - pattern: hashlib.sha1(...)
+          - pattern: crypto.createHash("md5")
+          - pattern: crypto.createHash("sha1")
+
+  - id: rules.offline.open_redirect
+    message: "Open redirect via user-controlled URL"
+    severity: WARNING
+    languages: [python, javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: flask.redirect($URL, ...)
+          - pattern: res.redirect($URL, ...)
+
+  - id: rules.offline.crypto_random
+    message: "Insecure pseudo-random number generator used for security context"
+    severity: WARNING
+    languages: [python, javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: random.random()
+          - pattern: random.randint(...)
+          - pattern: Math.random()
+
+  - id: rules.offline.tls_verify
+    message: "TLS certificate verification disabled"
+    severity: ERROR
+    languages: [python, javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: requests.get(..., verify=False, ...)
+          - pattern: requests.post(..., verify=False, ...)
+          - pattern: ssl._create_unverified_context()
+          - pattern: '{ rejectUnauthorized: false }'
+
+  - id: rules.offline.debug_mode
+    message: "Debug mode enabled in production code"
+    severity: WARNING
+    languages: [python]
+    patterns:
+      - pattern-either:
+          - pattern: $APP.run(..., debug=True, ...)
+          - pattern: DEBUG = True
+
+  - id: rules.offline.insecure_cookie
+    message: "Cookie set without secure flags"
+    severity: WARNING
+    languages: [python, javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: $RESP.set_cookie($NAME, $VAL)
+          - pattern: res.cookie($NAME, $VAL)
+
+  - id: rules.offline.jwt_unverified
+    message: "JWT verification disabled or algorithm none"
+    severity: ERROR
+    languages: [python, javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: jwt.decode(..., options={"verify_signature": False}, ...)
+          - pattern: jwt.verify(..., { algorithms: ["none"] }, ...)
+
+  - id: rules.offline.xxe
+    message: "XML parsing with external entity expansion enabled"
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern-either:
+          - pattern: lxml.etree.parse(...)
+          - pattern: xml.etree.ElementTree.parse(...)
+
+  - id: rules.offline.ssti
+    message: "Server-side template injection via string template rendering"
+    severity: ERROR
+    languages: [python, javascript]
+    patterns:
+      - pattern-either:
+          - pattern: jinja2.Template($DATA)
+          - pattern: render_template_string($DATA, ...)
+
+  - id: rules.offline.zipslip
+    message: "Arbitrary file overwrite via zip/tar archive extraction without path check"
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern-either:
+          - pattern: $ARCHIVE.extractall(...)

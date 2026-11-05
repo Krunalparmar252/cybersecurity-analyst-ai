@@ -357,6 +357,7 @@ def run_pipeline(
     offline: bool = False,
     dynamic: bool = False,
     incremental: bool = False,
+    scanners: str = "native,bandit,semgrep",
 ) -> PipelineResult:
     """
     Run the full pipeline. `repo_path` accepts either a local directory path OR
@@ -391,6 +392,7 @@ def run_pipeline(
                 offline=offline,
                 dynamic=dynamic,
                 incremental=incremental,
+                scanners=scanners,
             )
     except RepoFetchError as exc:
         # Fetch failures (bad URL, missing git, clone timeout, nonexistent local
@@ -435,6 +437,7 @@ def _run_pipeline_on_local_path(
     offline: bool = False,
     dynamic: bool = False,
     incremental: bool = False,
+    scanners: str = "native,bandit,semgrep",
 ) -> PipelineResult:
     repo_path = local_path
     start_time = time.time()
@@ -610,7 +613,7 @@ def _run_pipeline_on_local_path(
     # ---------------------------------------------------------------- DETECT
     if on_stage_start:
         on_stage_start("DETECT")
-    det = run_detection_agent(ing.result)
+    det = run_detection_agent(ing.result, repo_path=repo_path, scanners=scanners)
 
     # --------------------------------------------------------- INCREMENTAL FILTER
     # Applied AFTER detection (INGEST and DETECT always run in full — only the

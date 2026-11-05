@@ -35,6 +35,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
+from analyst.detection.adapters import get_available_adapters, merge_findings
 from analyst.detection.engine import CandidateFinding, run_detection
 from analyst.ingestion.manifest import IngestionResult, ingest_repo
 from analyst.protocol import (
@@ -61,10 +62,32 @@ class DetectionAgentResult:
     rule_families: list  # distinct rule_ids that fired
 
 
-def run_detection_agent(ingestion: IngestionResult) -> DetectionAgentResult:
+def run_detection_agent(
+    ingestion: IngestionResult,
+    repo_path: Optional[str] = None,
+    scanners: Optional[str] = None,
+) -> DetectionAgentResult:
     """RUN -> OBSERVE -> DECIDE for the detection stage."""
-    # --- RUN (delegates entirely to the existing, unmodified rule engine) ---
-    candidates: list[CandidateFinding] = run_detection(ingestion)
+    scanner_tokens = [
+        s.strip().lower()
+        for s in (scanners or "native,bandit,semgrep").split(",")
+        if s.strip()
+    ]
+
+    # --- RUN (native engine + optional external adapters) ---
+    candidates: list[CandidateFinding] = []
+    if "native" in scanner_tokens:
+        candidates = run_detection(ingestion)
+
+    # Run available external adapters if target path is provided
+    if repo_path:
+        external_tokens = [s for s in scanner_tokens if s != "native"]
+        if external_tokens:
+            languages = list({f.language for f in ingestion.manifest.files if f.language})
+            for adapter in get_available_adapters(external_tokens):
+                ext_candidates = adapter.run(repo_path, languages=languages)
+                if ext_candidates:
+                    candidates = merge_findings(candidates, ext_candidates)
 
     # --- OBSERVE ---
     total = len(candidates)

@@ -8,7 +8,7 @@ work via re-exports.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Optional
 
 from analyst.common.redact import scrub_text
@@ -38,7 +38,7 @@ class CandidateFinding:
     line: int  # 1-indexed, matches ground_truth.json convention
     snippet: str
     confidence: str  # high | medium | low
-    source_scanner: str  # "static" | "secrets"
+    source_scanner: str  # "static" | "secrets" | "bandit" | "semgrep"
     # C-3: set by incremental scan logic. "rescanned" = analysed fresh this run;
     # "carried_forward" = pulled from a previous scan's cache unchanged.
     # Defaults to "rescanned" so all existing callers need no changes.
@@ -50,6 +50,10 @@ class CandidateFinding:
     already_resolved: bool = False
     # The patch_diff from the previous run (only meaningful when already_resolved=True).
     cached_patch_diff: Optional[str] = None
+    # Phase 2: other scanners that also flagged this finding within ±2 lines.
+    corroborated_by: list[str] = field(default_factory=list)
+    # Phase 2: taint engine dataflow trace: list of dicts (file, line, description)
+    dataflow: list[dict] = field(default_factory=list)
 
     def to_dict(self):
         return asdict(self)
@@ -69,6 +73,8 @@ class ConfirmedFinding:
     # Provenance: which tier produced this conclusion (LLM vs regex fallback).
     analysis_tier: str = TIER_LLM
     fallback_trigger: Optional[str] = None
+    corroborated_by: list[str] = field(default_factory=list)
+    dataflow: list[dict] = field(default_factory=list)
 
     def to_dict(self):
         """Serialisable form for artifacts/API. Free-text fields are scrubbed
