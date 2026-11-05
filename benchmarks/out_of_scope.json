@@ -1,0 +1,107 @@
+[
+  {
+    "class": "Broken Access Control (A1)",
+    "count": 2,
+    "repo": "pygoat"
+  },
+  {
+    "class": "Sensitive Data Exposure (robots.txt)",
+    "count": 1,
+    "repo": "pygoat"
+  },
+  {
+    "class": "Insufficient Logging (A10)",
+    "count": 1,
+    "repo": "pygoat"
+  },
+  {
+    "class": "Insecure Design (Rate Limiting/Lockout)",
+    "count": 1,
+    "repo": "pygoat"
+  },
+  {
+    "class": "Insecure Direct Object Reference (A4)",
+    "count": 1,
+    "repo": "nodegoat"
+  },
+  {
+    "class": "Cross-Site Request Forgery (CSRF / A8)",
+    "count": 1,
+    "repo": "nodegoat"
+  },
+  {
+    "class": "CRLF / Log Injection (A1-3)",
+    "count": 1,
+    "repo": "nodegoat"
+  },
+  {
+    "class": "Brute Force Protection Missing",
+    "count": 1,
+    "repo": "vulpy"
+  },
+  {
+    "class": "MFA Bypass",
+    "count": 1,
+    "repo": "vulpy"
+  },
+  {
+    "class": "Clickjacking (X-Frame-Options)",
+    "count": 1,
+    "repo": "vulpy"
+  },
+  {
+    "class": "Session Invalidation on Logout",
+    "count": 1,
+    "repo": "dvpwa"
+  },
+  {
+    "class": "Broken Access Control",
+    "count": 3,
+    "repo": "juice-shop"
+  },
+  {
+    "class": "Broken Anti Automation",
+    "count": 1,
+    "repo": "juice-shop"
+  },
+  {
+    "class": "Improper Input Validation",
+    "count": 1,
+    "repo": "juice-shop"
+  },
+  {
+    "class": "Injection",
+    "count": 3,
+    "repo": "juice-shop"
+  },
+  {
+    "class": "Observability Failures",
+    "count": 1,
+    "repo": "juice-shop"
+  },
+  {
+    "class": "A4: XML External Entities (XXE via frontend)",
+    "count": 1,
+    "repo": "dvna"
+  },
+  {
+    "class": "A5: Broken Access Control",
+    "count": 1,
+    "repo": "dvna"
+  },
+  {
+    "class": "A9: Using Components with Known Vulnerabilities",
+    "count": 1,
+    "repo": "dvna"
+  },
+  {
+    "class": "A10: Insufficient Logging",
+    "count": 1,
+    "repo": "dvna"
+  },
+  {
+    "class": "CSRF",
+    "count": 1,
+    "repo": "dvna"
+  }
+]

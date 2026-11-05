@@ -1,0 +1,86 @@
+[
+  {
+    "id": "GT-NODEGOAT-DESER-01",
+    "file": "app/routes/contributions.js",
+    "line": 32,
+    "rule_id": "DESER-002",
+    "class": "Unsafe Deserialization",
+    "cwe": "CWE-502",
+    "description": "Insecure use of eval() to evaluate user-supplied input (preTax)",
+    "label_source": "lesson comments in source",
+    "confidence": 1.0,
+    "reviewed": false
+  },
+  {
+    "id": "GT-NODEGOAT-DESER-02",
+    "file": "app/routes/contributions.js",
+    "line": 33,
+    "rule_id": "DESER-002",
+    "class": "Unsafe Deserialization",
+    "cwe": "CWE-502",
+    "description": "Insecure use of eval() to evaluate user-supplied input (afterTax)",
+    "label_source": "lesson comments in source",
+    "confidence": 1.0,
+    "reviewed": false
+  },
+  {
+    "id": "GT-NODEGOAT-DESER-03",
+    "file": "app/routes/contributions.js",
+    "line": 34,
+    "rule_id": "DESER-002",
+    "class": "Unsafe Deserialization",
+    "cwe": "CWE-502",
+    "description": "Insecure use of eval() to evaluate user-supplied input (roth)",
+    "label_source": "lesson comments in source",
+    "confidence": 1.0,
+    "reviewed": false
+  },
+  {
+    "id": "GT-NODEGOAT-SQLI-01",
+    "file": "app/data/allocations-dao.js",
+    "line": 78,
+    "rule_id": "SQLI-001",
+    "class": "SQL Injection",
+    "cwe": "CWE-89",
+    "description": "NoSQL $where clause with unsanitized threshold parameter",
+    "label_source": "lesson comments in source",
+    "confidence": 1.0,
+    "reviewed": false
+  },
+  {
+    "id": "GT-NODEGOAT-REDIR-01",
+    "file": "app/routes/index.js",
+    "line": 72,
+    "rule_id": "REDIR-001",
+    "class": "Open Redirect",
+    "cwe": "CWE-601",
+    "description": "res.redirect takes user-controlled url from query string",
+    "label_source": "lesson comments in source",
+    "confidence": 1.0,
+    "reviewed": false
+  },
+  {
+    "id": "GT-NODEGOAT-AUTH-01",
+    "file": "app/data/user-dao.js",
+    "line": 61,
+    "rule_id": "AUTH-005",
+    "class": "Broken Authentication",
+    "cwe": "CWE-287",
+    "description": "Plain === equality check for stored password instead of bcrypt compare",
+    "label_source": "lesson comments in source",
+    "confidence": 1.0,
+    "reviewed": false
+  },
+  {
+    "id": "GT-NODEGOAT-CRYPTO-01",
+    "file": "app/data/user-dao.js",
+    "line": 51,
+    "rule_id": "CRYPTO-003",
+    "class": "Insecure Cryptography",
+    "cwe": "CWE-338",
+    "description": "Math.random() used to generate security-sensitive user data",
+    "label_source": "lesson comments in source",
+    "confidence": 1.0,
+    "reviewed": false
+  }
+]

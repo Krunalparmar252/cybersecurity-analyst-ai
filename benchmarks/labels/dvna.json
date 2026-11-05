@@ -1,0 +1,86 @@
+[
+  {
+    "id": "GT-DVNA-SQLI-01",
+    "file": "core/appHandler.js",
+    "line": 11,
+    "rule_id": "SQLI-001",
+    "class": "SQL Injection",
+    "cwe": "CWE-89",
+    "description": "db.sequelize.query with raw string concatenation of req.body.login",
+    "label_source": "project documentation and vulns.js",
+    "confidence": 1.0,
+    "reviewed": false
+  },
+  {
+    "id": "GT-DVNA-CMDINJ-01",
+    "file": "core/appHandler.js",
+    "line": 39,
+    "rule_id": "CMDINJ-002",
+    "class": "Command Injection",
+    "cwe": "CWE-78",
+    "description": "child_process.exec with concatenated user address parameter",
+    "label_source": "project documentation and vulns.js",
+    "confidence": 1.0,
+    "reviewed": false
+  },
+  {
+    "id": "GT-DVNA-REDIR-01",
+    "file": "core/appHandler.js",
+    "line": 188,
+    "rule_id": "REDIR-001",
+    "class": "Open Redirect",
+    "cwe": "CWE-601",
+    "description": "res.redirect called with unsanitized req.query.url parameter",
+    "label_source": "project documentation and vulns.js",
+    "confidence": 1.0,
+    "reviewed": false
+  },
+  {
+    "id": "GT-DVNA-DESER-01",
+    "file": "core/appHandler.js",
+    "line": 218,
+    "rule_id": "DESER-003",
+    "class": "Unsafe Deserialization",
+    "cwe": "CWE-502",
+    "description": "serialize.unserialize called on user-supplied uploaded file data",
+    "label_source": "project documentation and vulns.js",
+    "confidence": 1.0,
+    "reviewed": false
+  },
+  {
+    "id": "GT-DVNA-CRYPTO-01",
+    "file": "core/authHandler.js",
+    "line": 49,
+    "rule_id": "CRYPTO-001",
+    "class": "Insecure Cryptography",
+    "cwe": "CWE-328",
+    "description": "md5 applied to security verification token",
+    "label_source": "project documentation and vulns.js",
+    "confidence": 1.0,
+    "reviewed": false
+  },
+  {
+    "id": "GT-DVNA-SECRET-01",
+    "file": "server.js",
+    "line": 24,
+    "rule_id": "SECRET-001",
+    "class": "Hardcoded Secrets",
+    "cwe": "CWE-798",
+    "description": "Hardcoded session secret 'keyboard cat'",
+    "label_source": "project source code",
+    "confidence": 1.0,
+    "reviewed": false
+  },
+  {
+    "id": "GT-DVNA-CONFIG-01",
+    "file": "server.js",
+    "line": 27,
+    "rule_id": "CONFIG-002",
+    "class": "Broken Authentication",
+    "cwe": "CWE-614",
+    "description": "Session cookie configured with secure: false",
+    "label_source": "project source code",
+    "confidence": 1.0,
+    "reviewed": false
+  }
+]

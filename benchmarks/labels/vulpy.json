@@ -1,0 +1,62 @@
+[
+  {
+    "id": "GT-VULPY-SQLI-01",
+    "file": "bad/libuser.py",
+    "line": 12,
+    "rule_id": "SQLI-002",
+    "class": "SQL Injection",
+    "cwe": "CWE-89",
+    "description": "sqlite3 cursor.execute with .format() query concatenation in user login",
+    "label_source": "project source comparison (bad vs good)",
+    "confidence": 1.0,
+    "reviewed": false
+  },
+  {
+    "id": "GT-VULPY-SQLI-02",
+    "file": "bad/libuser.py",
+    "line": 53,
+    "rule_id": "SQLI-002",
+    "class": "SQL Injection",
+    "cwe": "CWE-89",
+    "description": "sqlite3 cursor.execute with .format() query concatenation in user update",
+    "label_source": "project source comparison (bad vs good)",
+    "confidence": 1.0,
+    "reviewed": false
+  },
+  {
+    "id": "GT-VULPY-CONFIG-01",
+    "file": "bad/libsession.py",
+    "line": 7,
+    "rule_id": "CONFIG-002",
+    "class": "Broken Authentication",
+    "cwe": "CWE-614",
+    "description": "set_cookie for session cookie without secure/httponly flags",
+    "label_source": "project source comparison (bad vs good)",
+    "confidence": 1.0,
+    "reviewed": false
+  },
+  {
+    "id": "GT-VULPY-SSRF-01",
+    "file": "bad/api_list.py",
+    "line": 10,
+    "rule_id": "SSRF-001",
+    "class": "Server-Side Request Forgery",
+    "cwe": "CWE-918",
+    "description": "requests.get with user-controlled parameter concatenation",
+    "label_source": "project source comparison (bad vs good)",
+    "confidence": 1.0,
+    "reviewed": false
+  },
+  {
+    "id": "GT-VULPY-SQLI-03",
+    "file": "bad/db.py",
+    "line": 19,
+    "rule_id": "SQLI-002",
+    "class": "SQL Injection",
+    "cwe": "CWE-89",
+    "description": "cursor.execute with % format string interpolation",
+    "label_source": "project source comparison (bad vs good)",
+    "confidence": 1.0,
+    "reviewed": false
+  }
+]
