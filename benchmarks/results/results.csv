@@ -1,0 +1,25 @@
+config,repo,split,language,status,files_scanned,total_time_seconds,files_per_second,tp,fp,fn,unlabeled,precision,recall,f1
+native-only,pygoat,dev,python,completed,463,1.826,253.5,11,2,0,82,0.8462,1.0,0.9167
+bandit-only,pygoat,,,not run,,,,,,,,,,
+semgrep-only,pygoat,,,not run,,,,,,,,,,
+merged,pygoat,dev,python,completed,463,2.003,231.2,11,2,0,82,0.8462,1.0,0.9167
+native-only,nodegoat,dev,javascript,completed,74,0.442,167.5,5,0,2,8,1.0,0.7143,0.8333
+bandit-only,nodegoat,,,not run,,,,,,,,,,
+semgrep-only,nodegoat,,,not run,,,,,,,,,,
+merged,nodegoat,dev,javascript,completed,74,0.667,110.9,5,0,2,8,1.0,0.7143,0.8333
+native-only,vulpy,test,python,completed,113,0.388,290.9,4,0,1,19,1.0,0.8,0.8889
+bandit-only,vulpy,,,not run,,,,,,,,,,
+semgrep-only,vulpy,,,not run,,,,,,,,,,
+merged,vulpy,test,python,completed,113,0.565,199.9,4,0,1,19,1.0,0.8,0.8889
+native-only,dvpwa,test,python,completed,56,4.95,11.3,2,1,1,3,0.6667,0.6667,0.6667
+bandit-only,dvpwa,,,not run,,,,,,,,,,
+semgrep-only,dvpwa,,,not run,,,,,,,,,,
+merged,dvpwa,test,python,completed,56,5.082,11.0,2,1,1,3,0.6667,0.6667,0.6667
+native-only,juice-shop,test,typescript,completed,1310,24.482,53.5,2,1,11,194,0.6667,0.1538,0.25
+bandit-only,juice-shop,,,not run,,,,,,,,,,
+semgrep-only,juice-shop,,,not run,,,,,,,,,,
+merged,juice-shop,test,typescript,completed,1310,24.185,54.2,2,1,11,194,0.6667,0.1538,0.25
+native-only,dvna,test,javascript,completed,149,0.303,491.9,4,0,3,5,1.0,0.5714,0.7273
+bandit-only,dvna,,,not run,,,,,,,,,,
+semgrep-only,dvna,,,not run,,,,,,,,,,
+merged,dvna,test,javascript,completed,149,0.469,317.4,4,0,3,5,1.0,0.5714,0.7273
